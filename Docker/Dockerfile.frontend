@@ -1,0 +1,20 @@
+# Usa la imagen oficial de Node.js
+FROM node:20
+
+# Establece el directorio de trabajo dentro del contenedor
+WORKDIR /app/frontend
+
+# Copia los archivos necesarios para instalar dependencias
+COPY frontend/package*.json ./
+
+# Instala las dependencias de Vite
+RUN npm install
+
+# Copia todo el código fuente del frontend
+COPY ./frontend ./
+
+# Expone el puerto que usa Vite por defecto
+EXPOSE 5173
+
+# Comando por defecto para iniciar el servidor de desarrollo de Vite
+CMD ["npm", "run", "dev", "--", "--host"]

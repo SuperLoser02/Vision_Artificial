@@ -1,0 +1,37 @@
+# Entornos virtuales
+venv/
+*.env
+
+# Archivos de compilación / caché de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+*.egg-info/
+*.egg
+*.sqlite3
+
+# Logs
+*.log
+*.pot
+
+# Archivos temporales de sistema
+.DS_Store
+Thumbs.db
+
+# Archivos de IDE
+.vscode/
+.idea/
+
+# Node.js
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+
+# Django
+backend/staticfiles/
+backend/media/
+
+# Docker
+postgres_data/

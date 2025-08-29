@@ -1,0 +1,52 @@
+version: "3.9"
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Docker/Dockerfile.backend
+    volumes:
+      - ./backend:/app/backend
+    env_file: .env
+    command: ["bash", "/app/Docker/IniciarDocker.sh"]
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Docker/Dockerfile.frontend
+    volumes:
+      - ./frontend:/app/frontend
+      - /app/frontend/node_modules
+    working_dir: /app/frontend
+    command: ["sh", "-c", "npm install && npm run dev"]
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+  db:
+    image: postgres:15
+    restart: always
+    env_file: .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:

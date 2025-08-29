@@ -1,0 +1,13 @@
+FROM python:3.11-slim
+
+Env PYTHONDONTWRITEBYTECODE 1
+Env PYTHONUNBUFFERED 1
+
+WORKDIR /app
+
+COPY ./Docker/requirements.txt /app/requirements.txt
+
+RUN pip install --upgrade pip
+RUN pip install -r requirements.txt
+RUN pip install drf-spectacular[swagger-ui]==0.28.0
+COPY . .

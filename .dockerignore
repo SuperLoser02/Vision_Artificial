@@ -1,0 +1,26 @@
+# Archivos de Git
+.git
+.gitignore
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+
+# Node.js
+frontend/node_modules
+frontend/dist
+frontend/build
+
+# Volúmenes y datos
+postgres_data
+
+# Archivos locales no necesarios en el contenedor
+*.log
