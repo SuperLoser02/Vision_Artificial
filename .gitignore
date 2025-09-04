@@ -33,5 +33,8 @@ frontend/build/
 backend/staticfiles/
 backend/media/
 
+**/migrations/*.py
+!**/migrations/__init__.py
+
 # Docker
 postgres_data/
