@@ -44,6 +44,8 @@ INSTALLED_APPS = [
     #Nuestras apps
     'perfil',
     'suscripcion',
+    'rest_framework',
+    'drf_spectacular',
 ]
 
 MIDDLEWARE = [
@@ -78,6 +80,19 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'visual_safety.wsgi.application'
+
+# drf-spectacular settings
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Visual Safety API',
+    'DESCRIPTION': 'Documentación de la API para Visual Safety',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+}
+
+# Configuración DRF para drf-spectacular
+REST_FRAMEWORK = {
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
 
 
 # Database
