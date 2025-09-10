@@ -39,7 +39,7 @@ const Registro = () => {
     };
 
     return (
-        <div className="container mx-auto py-10">
+        <div className="container mx-auto py-10 bg-gradient-to-r from-blue-500 to-purple-600 h-screen w-screen">
             <h1 className="text-center text-3xl font-bold mb-6 text-gray-800">Registro</h1>
             <form onSubmit={handleSubmit} className="max-w-lg mx-auto bg-white p-6 rounded-lg shadow-md">
                 <div className="mb-4">

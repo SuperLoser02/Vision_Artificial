@@ -11,7 +11,7 @@ const Suscripcion = () => {
     ]);
 
     return (
-        <div className="container mx-auto py-5">
+        <div className="container mx-auto py-5 bg-gradient-to-r from-blue-500 to-purple-600 h-screen w-screen">
             <h1 className="text-center text-3xl font-bold mb-6">Planes de Suscripción</h1>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {planes.map((plan) => (

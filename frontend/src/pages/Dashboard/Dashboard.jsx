@@ -8,9 +8,9 @@ const Dashboard = () => {
     };
 
     return (
-        <div className="flex h-screen w-screen bg-gray-100">
+        <div className="flex h-screen w-screen bg-white">
             {/* Sidebar */}
-            <div className={`${sidebarOpen ? "w-64" : "w-20"} bg-blue-600 text-white transition-all duration-300`} >
+            <div className={`${sidebarOpen ? "w-64" : "w-20"} bg-gradient-to-r from-blue-500 to-purple-600 text-white transition-all duration-300`} >
                 <div className="p-4 flex items-center justify-between">
                     <h1 className={`text-xl font-bold ${!sidebarOpen && "hidden"}`}>Cámaras</h1>
                     <button onClick={toggleSidebar} className="text-white focus:outline-none">
