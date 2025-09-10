@@ -6,6 +6,7 @@ import Dashboard from "./pages/Dashboard/Dashboard";
 import Perfil from "./pages/Perfil/Perfil";
 import PerfilCRUD from "./pages/Perfil/PerfilCRUD";
 import Suscripcion from "./pages/Suscripcion/Suscripcion";
+import Registro from "./pages/Suscripcion/Registro";
 
 
 import "./App.css";
@@ -18,6 +19,7 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/perfil" element={<Perfil />} />
         <Route path="/perfil-crud" element={<PerfilCRUD />} />
+        <Route path="/registro" element={<Registro />} />
         <Route path="/suscripcion" element={<Suscripcion />} />
 
         <Route path="/dashboard" element={<Dashboard />} />
