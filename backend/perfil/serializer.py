@@ -1,13 +1,18 @@
 from rest_framework import serializers
-from .models import Suscripcion, Plan
+from .models import Perfil, Categoria, Perfil_Categoria
 
-class PlanSerializer(serializers.ModelSerializer):
+class PerfilSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Plan
+        model = Perfil
         fields = '__all__'
 
-class SuscripcionSerializer(serializers.ModelSerializer):
+class CategoriaSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Suscripcion
+        model = Categoria
         fields = '__all__'
-    
+
+class PerfilCategoriaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Perfil_Categoria
+        fields = '__all__'
+        
