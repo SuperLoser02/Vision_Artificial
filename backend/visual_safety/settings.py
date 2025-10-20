@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     #Nuestras apps
     'perfil',
     'suscripcion',
+    'reporte',
     'rest_framework',
     'drf_spectacular',
 ]

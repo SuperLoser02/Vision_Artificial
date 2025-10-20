@@ -7,7 +7,7 @@ class Perfil(models.Model):
     ci = models.CharField(max_length=10, unique=True)
     nombre = models.CharField(max_length=100)
     apellido = models.CharField(max_length=100)
-    contraseña = models.CharField(max_length=255)
+    contraseña = models.CharField(max_length=255, blank=True)
     email = models.EmailField(unique=True)
     telefono = models.CharField(max_length=15, blank=True, null=True)
     direccion = models.TextField(blank=True, null=True)
