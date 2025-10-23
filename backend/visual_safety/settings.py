@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-#1!co-6za3to3xow^v_1$7xy45gl#doy-c1@=go730tj#lsd@9
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'backend', '*']
 
 
 # Application definition
@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'perfil',
     'suscripcion',
     'reporte',
+    'camaras',
     'rest_framework',
     'drf_spectacular',
 ]
