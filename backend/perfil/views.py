@@ -4,13 +4,27 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.contrib.auth.hashers import make_password, check_password
 from django.utils.timezone import now
+from django.contrib.auth.models import User
 from .models import Perfil, Categoria, Perfil_Categoria, Sesion_del_Perfil
-from .serializer import PerfilSerializer, CategoriaSerializer, PerfilCategoriaSerializer
+from .serializer import PerfilSerializer, CategoriaSerializer, PerfilCategoriaSerializer, UserSerializer, UserCreateSerializer
 import uuid
 
 
 # Create your views here.
-
+class UserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all()
+    permission_classes = [IsAuthenticated]
+    
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return UserCreateSerializer
+        return UserSerializer
+    
+    @action(detail=False, methods=['get'])
+    def me(self, request):
+        """Obtener información del usuario actual"""
+        serializer = self.get_serializer(request.user)
+        return Response(serializer.data)
 
 
 class PerfilViewSet(viewsets.ModelViewSet):
