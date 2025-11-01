@@ -1,13 +1,117 @@
 from rest_framework import viewsets, status
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
-from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
+from rest_framework.authtoken.models import Token
 from django.contrib.auth.hashers import make_password, check_password
 from django.utils.timezone import now
 from django.contrib.auth.models import User
+from django.contrib.auth import authenticate
 from .models import Perfil, Categoria, Perfil_Categoria, Sesion_del_Perfil
 from .serializer import PerfilSerializer, CategoriaSerializer, PerfilCategoriaSerializer, UserSerializer, UserCreateSerializer
 import uuid
+
+
+# ============================================
+# ENDPOINTS DE AUTENTICACIÓN DE EMPRESA
+# ============================================
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def login_empresa(request):
+    """Login para empresas/administradores"""
+    username = request.data.get('username')
+    password = request.data.get('password')
+    
+    if not username or not password:
+        return Response(
+            {"error": "Usuario y contraseña son requeridos"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    user = authenticate(username=username, password=password)
+    
+    if user is not None:
+        # Obtener o crear token de Django REST Framework
+        token, created = Token.objects.get_or_create(user=user)
+        
+        return Response({
+            "token": token.key,
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name
+            },
+            "mensaje": "Inicio de sesión exitoso"
+        }, status=status.HTTP_200_OK)
+    else:
+        return Response(
+            {"error": "Credenciales incorrectas"},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def registro_empresa(request):
+    """Registro de nuevas empresas"""
+    # Validar campos requeridos
+    campos_requeridos = ['nombre', 'email', 'username_admin', 'password', 'plan_id']
+    for campo in campos_requeridos:
+        if not request.data.get(campo):
+            return Response(
+                {"error": f"El campo '{campo}' es requerido"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    
+    username = request.data.get('username_admin')
+    email = request.data.get('email')
+    password = request.data.get('password')
+    nombre_empresa = request.data.get('nombre')
+    
+    # Verificar si el usuario ya existe
+    if User.objects.filter(username=username).exists():
+        return Response(
+            {"error": "El nombre de usuario ya está en uso"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    if User.objects.filter(email=email).exists():
+        return Response(
+            {"error": "El correo electrónico ya está registrado"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        # Crear usuario
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+            first_name=nombre_empresa
+        )
+        
+        # Generar token para el nuevo usuario
+        token = Token.objects.create(user=user)
+        
+        return Response({
+            "mensaje": "Empresa registrada exitosamente",
+            "token": token.key,
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "nombre_empresa": nombre_empresa
+            }
+        }, status=status.HTTP_201_CREATED)
+        
+    except Exception as e:
+        return Response(
+            {"error": f"Error al registrar empresa: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
 # Create your views here.

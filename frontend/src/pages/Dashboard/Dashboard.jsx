@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { logout } from "../../services/Api";
 
 const Dashboard = () => {
     const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -11,9 +13,15 @@ const Dashboard = () => {
         zona: ''
     });
     const [loading, setLoading] = useState(false);
+    const navigate = useNavigate();
 
     const toggleSidebar = () => {
         setSidebarOpen(!sidebarOpen);
+    };
+
+    const handleCerrarSesion = () => {
+        logout();
+        navigate('/login');
     };
 
     // Función para detectar cámaras automáticamente
@@ -70,28 +78,50 @@ const Dashboard = () => {
     return (
         <div className="flex h-screen w-screen bg-white">
             {/* Sidebar */}
-            <div className={`${sidebarOpen ? "w-64" : "w-20"} bg-gradient-to-r from-blue-500 to-purple-600 text-white transition-all duration-300`} >
+            <div className={`${sidebarOpen ? "w-64" : "w-20"} bg-gradient-to-r from-blue-500 to-purple-600 text-white transition-all duration-300 flex flex-col relative`}>
                 <div className="p-4 flex items-center justify-between">
                     <h1 className={`text-xl font-bold ${!sidebarOpen && "hidden"}`}>Cámaras</h1>
                     <button onClick={toggleSidebar} className="text-white focus:outline-none">
                         {sidebarOpen ? "←" : "→"}
                     </button>
                 </div>
-                <ul className="mt-4">
+                
+                {/* Menú de opciones */}
+                <ul className="mt-4 flex-1 overflow-y-auto">
                     {Array.from({ length: 5 }, (_, i) => (
                         <li
                             key={i}
                             className="p-4 hover:bg-blue-700 cursor-pointer text-center"
                         >
-                            Opción {i + 1}
+                            {sidebarOpen ? `Opción ${i + 1}` : `${i + 1}`}
                         </li>
                     ))}
                 </ul>
+                
+                {/* Botón de cerrar sesión fijo en la parte inferior */}
+                <div className="p-4 border-t border-white border-opacity-20">
+                    <button
+                        onClick={handleCerrarSesion}
+                        className={`w-full bg-red-500 hover:bg-red-600 text-white py-3 rounded-lg transition-all duration-300 flex items-center justify-center gap-2 font-semibold shadow-lg hover:shadow-xl ${!sidebarOpen && "px-0"}`}
+                        title="Cerrar Sesión"
+                    >
+                        <span className="text-xl">🚪</span>
+                        {sidebarOpen && <span>Cerrar Sesión</span>}
+                    </button>
+                </div>
             </div>
 
             {/* Main Content */}
             <div className="flex-1 p-6">
-                <h1 className="text-2xl font-bold mb-4">Dashboard de Cámaras</h1>
+                <div className="flex justify-between items-center mb-4">
+                    <h1 className="text-2xl font-bold">Dashboard de Cámaras</h1>
+                    <button
+                        onClick={handleCerrarSesion}
+                        className="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg transition-all duration-300"
+                    >
+                        Cerrar Sesión
+                    </button>
+                </div>
                 
                 {/* Botones de acción */}
                 <div className="mb-4 flex gap-4">

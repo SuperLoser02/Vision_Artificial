@@ -4,7 +4,7 @@ import HomePage from "./pages/HomePage/HomePage";
 import Login from "./pages/Login/Login";
 import Dashboard from "./pages/Dashboard/Dashboard";
 import Perfil from "./pages/Perfil/Perfil";
-import PerfilCRUD from "./pages/Perfil/PerfilCRUD";
+import PerfilRegistro from "./pages/Perfil/PerfilRegistro";
 import Suscripcion from "./pages/Suscripcion/Suscripcion";
 import Registro from "./pages/Suscripcion/Registro";
 
@@ -18,7 +18,7 @@ function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/perfil" element={<Perfil />} />
-        <Route path="/perfil-crud" element={<PerfilCRUD />} />
+        <Route path="/perfil-registro" element={<PerfilRegistro />} />
         <Route path="/registro" element={<Registro />} />
         <Route path="/suscripcion" element={<Suscripcion />} />
 

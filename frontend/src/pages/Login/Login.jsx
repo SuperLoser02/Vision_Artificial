@@ -1,19 +1,29 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { loginAdmin } from '../../services/Api';
 
 const Login = () => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
-    const handleLogin = (e) => {
+    const handleLogin = async (e) => {
         e.preventDefault();
-        if (username === 'admin' && password === 'admin123') {
-            alert('Inicio de sesión exitoso');
-            navigate('/perfil');
-        } else {
-            setError('Credenciales incorrectas');
+        setError('');
+        setLoading(true);
+
+        try {
+            const response = await loginAdmin(username, password);
+            console.log('Login exitoso:', response);
+            alert(`¡Bienvenido, ${response.user.username}!`);
+            navigate('/perfil-registro');
+        } catch (err) {
+            console.error('Error en login:', err);
+            setError(err.error || err.detail || 'Error al iniciar sesión');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -21,7 +31,20 @@ const Login = () => {
         <div className="h-screen w-screen flex items-center justify-center bg-gradient-to-r from-blue-500 to-purple-600">
             <form onSubmit={handleLogin} className="bg-white p-8 rounded-lg shadow-lg w-full max-w-2xl mx-4">
                 <h2 className="text-3xl font-extrabold mb-6 text-center text-gray-800">Iniciar Sesión</h2>
-                {error && <p className="text-red-600 text-sm mb-4 text-center">{error}</p>}
+                
+                {/* Información sobre credenciales por defecto */}
+                <div className="mb-4 p-3 bg-blue-50 border-l-4 border-blue-500 text-blue-700 text-sm">
+                    <p className="font-semibold">💡 Credenciales por defecto</p>
+                    <p className="mt-1">Usuario: <code className="bg-blue-100 px-1 rounded">admin</code></p>
+                    <p>Contraseña: <code className="bg-blue-100 px-1 rounded">admin123</code></p>
+                </div>
+
+                {error && (
+                    <div className="mb-4 p-3 bg-red-100 border-l-4 border-red-500 text-red-700 rounded">
+                        {error}
+                    </div>
+                )}
+                
                 <div className="mb-5">
                     <label htmlFor="username" className="block text-sm font-medium text-gray-700">Usuario</label>
                     <input
@@ -30,8 +53,12 @@ const Login = () => {
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
                         className="mt-2 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent sm:text-sm"
+                        required
+                        disabled={loading}
+                        autoComplete="username"
                     />
                 </div>
+                
                 <div className="mb-5">
                     <label htmlFor="password" className="block text-sm font-medium text-gray-700">Contraseña</label>
                     <input
@@ -40,14 +67,30 @@ const Login = () => {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         className="mt-2 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent sm:text-sm"
+                        required
+                        disabled={loading}
+                        autoComplete="current-password"
                     />
                 </div>
+                
                 <button
                     type="submit"
-                    className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-2 px-4 rounded-lg hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50 transition-all duration-300"
+                    disabled={loading}
+                    className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-2 px-4 rounded-lg hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    Iniciar Sesión
+                    {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
                 </button>
+
+                <div className="mt-4 text-center">
+                    <button
+                        type="button"
+                        onClick={() => navigate('/registro')}
+                        className="text-blue-600 hover:text-blue-700 font-semibold text-sm"
+                        disabled={loading}
+                    >
+                        ¿No tienes cuenta? Regístrate aquí
+                    </button>
+                </div>
             </form>
         </div>
     );

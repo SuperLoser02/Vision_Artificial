@@ -40,14 +40,15 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     
     'corsheaders',
+    'rest_framework',
+    'rest_framework.authtoken',  # ← Agregado para autenticación con Token
+    'drf_spectacular',
     
     #Nuestras apps
     'perfil',
     'suscripcion',
     'reporte',
     'camaras',
-    'rest_framework',
-    'drf_spectacular',
 ]
 
 MIDDLEWARE = [
@@ -91,9 +92,15 @@ SPECTACULAR_SETTINGS = {
     'SERVE_INCLUDE_SCHEMA': False,
 }
 
-# Configuración DRF para drf-spectacular
+# Configuración DRF 
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    # ⚠️ NO establecer DEFAULT_PERMISSION_CLASSES aquí
+    # Cada viewset/vista manejará sus propios permisos
 }
 
 
