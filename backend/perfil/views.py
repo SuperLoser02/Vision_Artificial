@@ -10,31 +10,62 @@ from django.contrib.auth import authenticate
 from .models import Perfil, Categoria, Perfil_Categoria, Sesion_del_Perfil
 from .serializer import PerfilSerializer, CategoriaSerializer, PerfilCategoriaSerializer, UserSerializer, UserCreateSerializer
 import uuid
-
+from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiResponse
 
 # ============================================
 # ENDPOINTS DE AUTENTICACIÓN DE EMPRESA
 # ============================================
 
+
+@extend_schema(
+    request={
+        "application/json": {
+            "type": "object",
+            "properties": {
+                "username": {"type": "string", "example": "empresa_xyz"},
+                "password": {"type": "string", "example": "supersegura123"}
+            },
+            "required": ["username", "password"]
+        }
+    },
+    responses={
+        200: OpenApiResponse(
+            response={
+                "type": "object",
+                "properties": {
+                    "token": {"type": "string"},
+                    "user": {"type": "object"},
+                    "mensaje": {"type": "string"}
+                }
+            },
+            description="Login exitoso"
+        ),
+        400: OpenApiResponse(description="Datos faltantes"),
+        401: OpenApiResponse(description="Credenciales incorrectas"),
+    },
+    examples=[
+        OpenApiExample(
+            "Ejemplo de login",
+            value={"username": "empresa", "password": "empresa123"},
+            request_only=True
+        )
+    ]
+)
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login_empresa(request):
     """Login para empresas/administradores"""
     username = request.data.get('username')
     password = request.data.get('password')
-    
     if not username or not password:
         return Response(
             {"error": "Usuario y contraseña son requeridos"},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
     user = authenticate(username=username, password=password)
-    
     if user is not None:
         # Obtener o crear token de Django REST Framework
         token, created = Token.objects.get_or_create(user=user)
-        
         return Response({
             "token": token.key,
             "user": {
@@ -53,6 +84,40 @@ def login_empresa(request):
         )
 
 
+
+@extend_schema(
+    request={
+        "application/json": {
+            "type": "object",
+            "properties": {
+                "nombre": {"type": "string", "example": "Empresa XYZ"},
+                "email": {"type": "string", "example": "empresa@xyz.com"},
+                "username_admin": {"type": "string", "example": "empresa_xyz"},
+                "password": {"type": "string", "example": "supersegura123"},
+                "plan_id": {"type": "integer", "example": 1}
+            },
+            "required": ["nombre", "email", "username_admin", "password", "plan_id"]
+        }
+    },
+    responses={
+        201: OpenApiResponse(description="Empresa registrada exitosamente"),
+        400: OpenApiResponse(description="Datos faltantes o duplicados"),
+        500: OpenApiResponse(description="Error interno"),
+    },
+    examples=[
+        OpenApiExample(
+            "Ejemplo de registro",
+            value={
+                "nombre": "Empresa",
+                "email": "empresa@gmail.com",
+                "username_admin": "empresa",
+                "password": "empresa123",
+                "plan_id": 1
+            },
+            request_only=True
+        )
+    ]
+)
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def registro_empresa(request):
@@ -65,25 +130,21 @@ def registro_empresa(request):
                 {"error": f"El campo '{campo}' es requerido"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-    
     username = request.data.get('username_admin')
     email = request.data.get('email')
     password = request.data.get('password')
     nombre_empresa = request.data.get('nombre')
-    
     # Verificar si el usuario ya existe
     if User.objects.filter(username=username).exists():
         return Response(
             {"error": "El nombre de usuario ya está en uso"},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
     if User.objects.filter(email=email).exists():
         return Response(
             {"error": "El correo electrónico ya está registrado"},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
     try:
         # Crear usuario
         user = User.objects.create_user(
@@ -92,10 +153,8 @@ def registro_empresa(request):
             password=password,
             first_name=nombre_empresa
         )
-        
         # Generar token para el nuevo usuario
         token = Token.objects.create(user=user)
-        
         return Response({
             "mensaje": "Empresa registrada exitosamente",
             "token": token.key,
@@ -106,7 +165,6 @@ def registro_empresa(request):
                 "nombre_empresa": nombre_empresa
             }
         }, status=status.HTTP_201_CREATED)
-        
     except Exception as e:
         return Response(
             {"error": f"Error al registrar empresa: {str(e)}"},
