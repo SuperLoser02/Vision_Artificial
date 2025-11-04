@@ -100,7 +100,7 @@ const PerfilCRUD = () => {
                 fecha_nacimiento: ''
             });
 
-            alert(`¡Perfil creado exitosamente!\n\nContraseña temporal: ${response.contraseña_temporal}\n\n⚠️ Guarda esta contraseña, es la única vez que se mostrará.`);
+            alert(`¡Perfil creado exitosamente!\n\nContraseña temporal: ${response.contraseña_temporal}\n\nGuarda esta contraseña, es la única vez que se mostrará.`);
             
             setShowModal(false);
         } catch (err) {
@@ -202,21 +202,21 @@ const PerfilCRUD = () => {
 
                                 <div className="space-y-2 text-white text-sm">
                                     <p>
-                                        <span className="font-semibold">📧 Email:</span> {perfil.email}
+                                        <span className="font-semibold">Email:</span> {perfil.email}
                                     </p>
                                     {perfil.telefono && (
                                         <p>
-                                            <span className="font-semibold">📱 Teléfono:</span> {perfil.telefono}
+                                            <span className="font-semibold">Teléfono:</span> {perfil.telefono}
                                         </p>
                                     )}
                                     {perfil.direccion && (
                                         <p>
-                                            <span className="font-semibold">📍 Dirección:</span> {perfil.direccion}
+                                            <span className="font-semibold">Dirección:</span> {perfil.direccion}
                                         </p>
                                     )}
                                     {perfil.fecha_nacimiento && (
                                         <p>
-                                            <span className="font-semibold">🎂 F. Nacimiento:</span> {perfil.fecha_nacimiento}
+                                            <span className="font-semibold">F. Nacimiento:</span> {perfil.fecha_nacimiento}
                                         </p>
                                     )}
                                     <p className="text-xs text-white text-opacity-60">
@@ -353,7 +353,7 @@ const PerfilCRUD = () => {
 
                                 <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
                                     <p className="text-sm text-yellow-700">
-                                        <span className="font-semibold">💡 Nota:</span> Se generará automáticamente una contraseña temporal con el formato: <code className="bg-yellow-100 px-1 rounded">INICIALES.CI</code>
+                                        <span className="font-semibold">Nota:</span> Se generará automáticamente una contraseña temporal con el formato: <code className="bg-yellow-100 px-1 rounded">INICIALES.CI</code>
                                     </p>
                                 </div>
 

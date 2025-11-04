@@ -87,7 +87,7 @@ const Registro = () => {
             const planNombre = planes.find(p => p.id === parseInt(formData.plan_id))?.nombre || 'Plan seleccionado';
             
             setMensaje(`
-                ✅ ¡REGISTRO EXITOSO!
+                REGISTRO EXITOSO
                 
                 Empresa: ${formData.nombre}
                 Usuario: ${formData.username_admin}
@@ -115,7 +115,7 @@ const Registro = () => {
 
             {planIdFromUrl && (
                 <div className="max-w-2xl mx-auto mb-4 p-4 bg-green-100 border-l-4 border-green-500 text-green-700 rounded">
-                    <p className="font-semibold">🎉 Plan seleccionado</p>
+                    <p className="font-semibold">Plan seleccionado</p>
                     <p className="text-sm mt-1">
                         Has seleccionado el plan <strong>{planes.find(p => p.id === parseInt(planIdFromUrl))?.nombre}</strong>. 
                         Completa tu registro para activarlo.

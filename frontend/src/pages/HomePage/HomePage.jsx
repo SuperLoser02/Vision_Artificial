@@ -15,7 +15,7 @@ const HomePage = () => {
                 <div className="grid md:grid-cols-2 gap-6 mb-8">
                     {/* Login para Empresas/Administradores */}
                     <div className="bg-white bg-opacity-10 backdrop-blur-md p-8 rounded-lg shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
-                        <div className="text-6xl mb-4">🏢</div>
+                        <div className="text-6xl mb-4">&#128970;</div>
                         <h2 className="text-2xl font-bold mb-3">Empresas</h2>
                         <p className="text-sm mb-6 text-white text-opacity-90">
                             Administra tu sistema de seguridad, gestiona trabajadores y monitorea en tiempo real
@@ -36,7 +36,7 @@ const HomePage = () => {
 
                     {/* Login para Trabajadores/Guardias */}
                     <div className="bg-white bg-opacity-10 backdrop-blur-md p-8 rounded-lg shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
-                        <div className="text-6xl mb-4">👮</div>
+                        <div className="text-6xl mb-4">&#128110;</div>
                         <h2 className="text-2xl font-bold mb-3">Trabajadores</h2>
                         <p className="text-sm mb-6 text-white text-opacity-90">
                             Guardias y personal de seguridad: accede a tu turno y sistema de monitoreo
@@ -56,17 +56,17 @@ const HomePage = () => {
                 {/* Características principales */}
                 <div className="mt-12 grid md:grid-cols-3 gap-4 text-sm">
                     <div className="bg-white bg-opacity-5 p-4 rounded-lg">
-                        <div className="text-3xl mb-2">📹</div>
+                        <div className="text-3xl mb-2">&#128249;</div>
                         <h3 className="font-semibold mb-1">Monitoreo 24/7</h3>
                         <p className="text-xs text-white text-opacity-80">Sistema de cámaras en tiempo real</p>
                     </div>
                     <div className="bg-white bg-opacity-5 p-4 rounded-lg">
-                        <div className="text-3xl mb-2">🤖</div>
+                        <div className="text-3xl mb-2">&#129302;</div>
                         <h3 className="font-semibold mb-1">IA Avanzada</h3>
                         <p className="text-xs text-white text-opacity-80">Detección inteligente de eventos</p>
                     </div>
                     <div className="bg-white bg-opacity-5 p-4 rounded-lg">
-                        <div className="text-3xl mb-2">📊</div>
+                        <div className="text-3xl mb-2">&#128202;</div>
                         <h3 className="font-semibold mb-1">Reportes</h3>
                         <p className="text-xs text-white text-opacity-80">Análisis y estadísticas completas</p>
                     </div>

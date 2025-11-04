@@ -67,7 +67,6 @@ const Perfil = () => {
             
             alert(`¡Bienvenido, ${selectedProfile.nombre} ${selectedProfile.apellido}!`);
             
-            // Redirigir al dashboard o página de guardias
             navigate('/dashboard');
         } catch (err) {
             console.error('Error al iniciar sesión:', err);
@@ -224,7 +223,7 @@ const Perfil = () => {
                         
                         <div className="bg-blue-50 bg-opacity-20 p-3 rounded mt-3 mb-4">
                             <p className="text-xs text-white text-opacity-90">
-                                💡 <strong>Primera vez:</strong> Usa la contraseña temporal que te dio el administrador.<br/>
+                                <strong>Primera vez:</strong> Usa la contraseña temporal que te dio el administrador.<br/>
                                 Formato: <code className="bg-white bg-opacity-20 px-1 rounded">INICIALES.CI</code>
                             </p>
                         </div>

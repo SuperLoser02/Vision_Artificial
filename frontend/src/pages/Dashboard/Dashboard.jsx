@@ -24,6 +24,14 @@ const Dashboard = () => {
         navigate('/login');
     };
 
+    const handleIrAPerfil = () => {
+        navigate('/mi-perfil');
+    };
+
+    const handleIrACategorias = () => {
+        navigate('/categorias');
+    };
+
     // Función para detectar cámaras automáticamente
     const detectarCamaras = async () => {
         setLoading(true);
@@ -80,7 +88,7 @@ const Dashboard = () => {
             {/* Sidebar */}
             <div className={`${sidebarOpen ? "w-64" : "w-20"} bg-gradient-to-r from-blue-500 to-purple-600 text-white transition-all duration-300 flex flex-col relative`}>
                 <div className="p-4 flex items-center justify-between">
-                    <h1 className={`text-xl font-bold ${!sidebarOpen && "hidden"}`}>Cámaras</h1>
+                    <h1 className={`text-xl font-bold ${!sidebarOpen && "hidden"}`}>Menú</h1>
                     <button onClick={toggleSidebar} className="text-white focus:outline-none">
                         {sidebarOpen ? "←" : "→"}
                     </button>
@@ -88,14 +96,22 @@ const Dashboard = () => {
                 
                 {/* Menú de opciones */}
                 <ul className="mt-4 flex-1 overflow-y-auto">
-                    {Array.from({ length: 5 }, (_, i) => (
-                        <li
-                            key={i}
-                            className="p-4 hover:bg-blue-700 cursor-pointer text-center"
-                        >
-                            {sidebarOpen ? `Opción ${i + 1}` : `${i + 1}`}
-                        </li>
-                    ))}
+                    <li
+                        onClick={handleIrAPerfil}
+                        className="p-4 hover:bg-blue-700 cursor-pointer flex items-center gap-3 transition-colors duration-200"
+                        title="Mi Perfil"
+                    >
+                        <span className="text-2xl">👤</span>
+                        {sidebarOpen && <span className="font-medium">Mi Perfil</span>}
+                    </li>
+                    <li
+                        onClick={handleIrACategorias}
+                        className="p-4 hover:bg-blue-700 cursor-pointer flex items-center gap-3 transition-colors duration-200"
+                        title="Categorías"
+                    >
+                        <span className="text-2xl">📋</span>
+                        {sidebarOpen && <span className="font-medium">Categorías</span>}
+                    </li>
                 </ul>
                 
                 {/* Botón de cerrar sesión fijo en la parte inferior */}

@@ -18,7 +18,7 @@ const Login = () => {
             const response = await loginAdmin(username, password);
             console.log('Login exitoso:', response);
             alert(`¡Bienvenido, ${response.user.username}!`);
-            navigate('/perfil-registro');
+            navigate('/perfil');
         } catch (err) {
             console.error('Error en login:', err);
             setError(err.error || err.detail || 'Error al iniciar sesión');
@@ -34,7 +34,7 @@ const Login = () => {
                 
                 {/* Información sobre credenciales por defecto */}
                 <div className="mb-4 p-3 bg-blue-50 border-l-4 border-blue-500 text-blue-700 text-sm">
-                    <p className="font-semibold">💡 Credenciales por defecto</p>
+                    <p className="font-semibold">Credenciales por defecto</p>
                     <p className="mt-1">Usuario: <code className="bg-blue-100 px-1 rounded">admin</code></p>
                     <p>Contraseña: <code className="bg-blue-100 px-1 rounded">admin123</code></p>
                 </div>
@@ -84,7 +84,7 @@ const Login = () => {
                 <div className="mt-4 text-center">
                     <button
                         type="button"
-                        onClick={() => navigate('/registro')}
+                        onClick={() => navigate('/suscripcion')}
                         className="text-blue-600 hover:text-blue-700 font-semibold text-sm"
                         disabled={loading}
                     >
