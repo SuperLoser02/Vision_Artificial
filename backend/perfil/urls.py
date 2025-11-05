@@ -6,7 +6,10 @@ from .views import (
     PerfilCategoriaViewSet, 
     UserViewSet,
     login_empresa,
-    registro_empresa
+    registro_empresa,
+    vincular_perfil,
+    verificar_dispositivo,
+    desvincular_perfil
 )
 
 router = DefaultRouter()
@@ -18,4 +21,7 @@ router.register(r'empresa', UserViewSet, basename='user')
 urlpatterns = [
     path('auth/login/', login_empresa, name='login-empresa'),
     path('auth/registro/', registro_empresa, name='registro-empresa'),
+    path('vincular_perfil/', vincular_perfil, name='vincular-perfil'),
+    path('verificar_dispositivo/', verificar_dispositivo, name='verificar-dispositivo'),
+    path('desvincular_perfil/', desvincular_perfil, name='desvincular-perfil'),
 ] + router.urls

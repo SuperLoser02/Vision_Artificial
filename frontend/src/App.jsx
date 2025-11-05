@@ -9,6 +9,7 @@ import MiPerfil from "./pages/Perfil/MiPerfil";
 import Suscripcion from "./pages/Suscripcion/Suscripcion";
 import Registro from "./pages/Suscripcion/Registro";
 import Categorias from "./pages/Categorias/Categorias";
+import Notificaciones from "./pages/Notificaciones/Notificaciones";
 
 
 import "./App.css";
@@ -25,6 +26,7 @@ function App() {
         <Route path="/registro" element={<Registro />} />
         <Route path="/suscripcion" element={<Suscripcion />} />
         <Route path="/categorias" element={<Categorias />} />
+        <Route path="/notificaciones" element={<Notificaciones />} />
 
         <Route path="/dashboard" element={<Dashboard />} />
 

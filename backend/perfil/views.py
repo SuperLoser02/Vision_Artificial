@@ -7,10 +7,11 @@ from django.contrib.auth.hashers import make_password, check_password
 from django.utils.timezone import now
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
-from .models import Perfil, Categoria, Perfil_Categoria, Sesion_del_Perfil
-from .serializer import PerfilSerializer, CategoriaSerializer, PerfilCategoriaSerializer, UserSerializer, UserCreateSerializer
+from .models import Perfil, Categoria, Perfil_Categoria, Sesion_del_Perfil, VinculacionDispositivo
+from .serializer import PerfilSerializer, CategoriaSerializer, PerfilCategoriaSerializer, UserSerializer, UserCreateSerializer, VinculacionDispositivoSerializer
 import uuid
 from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiResponse
+from django.utils import timezone
 
 # ============================================
 # ENDPOINTS DE AUTENTICACIÓN DE EMPRESA
@@ -173,6 +174,188 @@ def registro_empresa(request):
 
 
 # Create your views here.
+# --- Vistas independientes para vinculación y desvinculación de perfil ---
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+
+@extend_schema(
+    request={
+        "application/json": {
+            "type": "object",
+            "properties": {
+                "token": {"type": "string", "example": "abc123"},
+                "dispositivo_id": {"type": "string", "example": "device-xyz"}
+            },
+            "required": ["token", "dispositivo_id"]
+        }
+    },
+    responses={
+        200: OpenApiResponse(
+            response={
+                "type": "object",
+                "properties": {
+                    "perfil": {"type": "object"},
+                    "perfil_id": {"type": "integer"},
+                    "token": {"type": "string"},
+                    "dispositivo_id": {"type": "string"}
+                }
+            },
+            description="Vinculación exitosa"
+        ),
+        400: OpenApiResponse(description="Token inválido o expirado")
+    },
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def vincular_perfil(request):
+    """
+    Vincula un perfil a un dispositivo usando el token QR.
+    Esta vinculación es PERMANENTE hasta que el usuario decida desvincular.
+    """
+    token = request.data.get('token')
+    dispositivo_id = request.data.get('dispositivo_id')
+    
+    if not token or not dispositivo_id:
+        return Response(
+            {"error": "Token y dispositivo_id son requeridos"}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Verificar si este dispositivo ya está vinculado a algún perfil
+    vinculacion_existente = VinculacionDispositivo.objects.filter(
+        dispositivo_id=dispositivo_id,
+        usado=True
+    ).first()
+    
+    if vinculacion_existente:
+        return Response({
+            "error": "Este dispositivo ya está vinculado a un perfil.",
+            "perfil_vinculado": {
+                "id": vinculacion_existente.perfil.id,
+                "nombre": vinculacion_existente.perfil.nombre,
+                "apellido": vinculacion_existente.perfil.apellido,
+                "ci": vinculacion_existente.perfil.ci
+            },
+            "mensaje": "Debes desvincular el perfil actual primero."
+        }, status=status.HTTP_409_CONFLICT)
+    
+    try:
+        # Buscar el token QR
+        vinc = VinculacionDispositivo.objects.get(token=token, usado=False)
+        
+        # Verificar expiración
+        if vinc.fecha_expiracion < timezone.now():
+            return Response(
+                {"error": "Token expirado. Solicita un nuevo QR al administrador."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Vincular permanentemente
+        perfil = vinc.perfil
+        vinc.usado = True
+        vinc.dispositivo_id = dispositivo_id
+        vinc.save()
+        
+        perfil_data = PerfilSerializer(perfil).data
+        
+        return Response({
+            "mensaje": "Dispositivo vinculado exitosamente",
+            "perfil": perfil_data,
+            "perfil_id": perfil.id,
+            "dispositivo_id": dispositivo_id
+        }, status=status.HTTP_200_OK)
+        
+    except VinculacionDispositivo.DoesNotExist:
+        return Response(
+            {"error": "Token QR inválido o ya fue usado."}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def verificar_dispositivo(request):
+    """
+    Verifica si un dispositivo ya está vinculado a un perfil.
+    Si está vinculado, retorna la información del perfil.
+    Esto permite el login directo sin escanear QR nuevamente.
+    """
+    dispositivo_id = request.data.get('dispositivo_id')
+    
+    if not dispositivo_id:
+        return Response(
+            {"error": "dispositivo_id es requerido"}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Buscar vinculación activa
+    vinculacion = VinculacionDispositivo.objects.filter(
+        dispositivo_id=dispositivo_id,
+        usado=True
+    ).first()
+    
+    if vinculacion:
+        perfil = vinculacion.perfil
+        return Response({
+            "vinculado": True,
+            "perfil": {
+                "id": perfil.id,
+                "ci": perfil.ci,
+                "nombre": perfil.nombre,
+                "apellido": perfil.apellido,
+                "email": perfil.email,
+                "telefono": perfil.telefono,
+                "direccion": perfil.direccion
+            }
+        }, status=status.HTTP_200_OK)
+    else:
+        return Response({
+            "vinculado": False,
+            "mensaje": "Este dispositivo no está vinculado a ningún perfil."
+        }, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def desvincular_perfil(request):
+    """
+    Desvincula un perfil de un dispositivo.
+    Esto permite vincular un nuevo perfil al mismo dispositivo.
+    También cierra todas las sesiones activas.
+    """
+    dispositivo_id = request.data.get('dispositivo_id')
+    
+    if not dispositivo_id:
+        return Response(
+            {"error": "dispositivo_id es requerido"}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Buscar vinculación
+    vinculacion = VinculacionDispositivo.objects.filter(
+        dispositivo_id=dispositivo_id,
+        usado=True
+    ).first()
+    
+    if vinculacion:
+        perfil = vinculacion.perfil
+        
+        # Cerrar sesiones activas de este perfil
+        Sesion_del_Perfil.objects.filter(
+            perfil=perfil,
+            is_active=True
+        ).update(is_active=False)
+        
+        # Eliminar vinculación
+        vinculacion.delete()
+        
+        return Response({
+            "mensaje": "Perfil desvinculado exitosamente.",
+            "perfil_desvinculado": f"{perfil.nombre} {perfil.apellido}"
+        }, status=status.HTTP_200_OK)
+    else:
+        return Response({
+            "error": "No se encontró ninguna vinculación para este dispositivo."
+        }, status=status.HTTP_404_NOT_FOUND)
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     permission_classes = [IsAuthenticated]
@@ -194,7 +377,10 @@ class PerfilViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Perfil.objects.filter(user_id=self.request.user)
+        user = self.request.user
+        if user.is_authenticated:
+            return Perfil.objects.filter(user_id=user)
+        return Perfil.objects.all()
     
     @action(detail=False, methods=['post'])
     def crear_perfil(self, request):
@@ -255,8 +441,16 @@ class PerfilViewSet(viewsets.ModelViewSet):
         perfil.save()
         return Response({"mensaje": "Contraseña actualizada exitosamente."},status=status.HTTP_200_OK )
     
-    
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
+    def generar_qr(self, request, pk=None):
+        perfil = self.get_object()
+        VinculacionDispositivo.objects.filter(perfil=perfil, usado=False, dispositivo_id__isnull=True).delete()
+        VinculacionDispositivo.objects.filter(perfil=perfil, usado=False).exclude(dispositivo_id__isnull=True).update(usado=True)
+        vinc = VinculacionDispositivo.objects.create(perfil=perfil)
+        serializer = VinculacionDispositivoSerializer(vinc)
+        return Response({"qr_data": vinc.token, "vinculacion": serializer.data}, status=200)
 
+    
 # sinceramente me da flojera hacer esto la ia se encargo pero debo de ajustarlo que peresa 
     # @action(detail=True, methods=['post'])
     # def restablecer_contraseña(self, request, pk=None):
@@ -289,11 +483,9 @@ class PerfilViewSet(viewsets.ModelViewSet):
     #         status=status.HTTP_200_OK
     #     )
 
-    @action(detail=True, methods=['patch'])
+    @action(detail=True, methods=['patch'], permission_classes=[AllowAny])
     def iniciar_sesion(self, request, pk=None):
         perfil = self.get_object()
-        if perfil.user_id != request.user:
-            return Response({"detail": "No autorizado."}, status=403)
         contraseña = request.data.get('contraseña')
         if not contraseña:
             return Response({"detail": "Contraseña requerida."}, status=400)
@@ -322,7 +514,7 @@ class PerfilViewSet(viewsets.ModelViewSet):
         except Sesion_del_Perfil.DoesNotExist:
             return Response({"detail": "Token inválido o sesión ya cerrada."}, status=400)
     
-    @action(detail=False, methods=['patch'])
+    @action(detail=False, methods=['patch'], permission_classes=[AllowAny])
     def mi_perfil(self, request):
         token = request.data.get('token')
         perfil = Perfil.get_perfil(token)

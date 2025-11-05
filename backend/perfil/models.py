@@ -1,5 +1,8 @@
 from django.db import models
 from django.contrib.auth import get_user_model
+from django.utils import timezone
+import uuid
+
 User = get_user_model()
 
 # Create your models here.
@@ -51,3 +54,21 @@ class Sesion_del_Perfil(models.Model):
 
     def __str__(self):
         return f"Sesión de {self.perfil.nombre} {self.perfil.apellido}"
+
+class VinculacionDispositivo(models.Model):
+    perfil = models.ForeignKey(Perfil, on_delete=models.CASCADE)
+    token = models.CharField(max_length=64, unique=True, default=uuid.uuid4)
+    dispositivo_id = models.CharField(max_length=128, blank=True, null=True)  # Puede ser el ID del dispositivo móvil
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_expiracion = models.DateTimeField(blank=True, null=True)
+    usado = models.BooleanField(default=False)
+
+    def save(self, *args, **kwargs):
+        if not self.token:
+            self.token = uuid.uuid4().hex
+        if not self.fecha_expiracion:
+            self.fecha_expiracion = timezone.now() + timezone.timedelta(minutes=10)  # Expira en 10 minutos
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Vinculación de {self.perfil} - Token: {self.token}"

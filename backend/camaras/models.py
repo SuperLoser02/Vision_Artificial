@@ -1,12 +1,14 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 User = get_user_model()
+from perfil.models import Perfil
 
 class Camara(models.Model):
     cantidad = models.IntegerField()
     lugar = models.CharField(max_length=255)
     cant_zonas = models.IntegerField()
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    perfil = models.ForeignKey(Perfil, on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         return f"Cámara en {self.lugar} ({self.cantidad} unidades)"

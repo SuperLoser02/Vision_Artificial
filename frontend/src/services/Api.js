@@ -1,3 +1,16 @@
+/**
+ * Consultar el estado de la señal de una cámara
+ * @param {number} detalleId - ID de CamaraDetalles
+ * @returns {Promise}
+ */
+export const obtenerEstadoCamara = async (detalleId) => {
+    try {
+        const response = await api.get(`estado-camara/${detalleId}/`);
+        return response.data;
+    } catch (error) {
+        return { estado: "error", mensaje: "No se pudo verificar la cámara" };
+    }
+};
 import axios from 'axios';
 
 // URL base del API - Configurada para Docker
@@ -203,6 +216,20 @@ export const obtenerMisSuscripciones = async () => {
 
 // ============================================
 // SERVICIOS DE PERFILES
+/**
+ * Generar QR de vinculación para un perfil (POST)
+ * @param {number} perfilId - ID del perfil
+ * @returns {Promise}
+ */
+export const generarQrVinculacion = async (perfilId) => {
+    try {
+        const response = await api.post(`perfiles/${perfilId}/generar_qr/`);
+        // El token está en response.data.qr_data
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || { error: 'Error al generar QR de vinculación' };
+    }
+};
 // ============================================
 
 /**

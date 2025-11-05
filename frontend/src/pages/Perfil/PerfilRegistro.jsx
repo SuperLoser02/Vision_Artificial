@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { obtenerPerfiles, crearPerfil } from "../../services/Api";
+import QRCode from "qrcode";
+import { generarQrVinculacion } from "../../services/Api";
 
 const PerfilCRUD = () => {
     const [perfiles, setPerfiles] = useState([]);
@@ -8,6 +10,14 @@ const PerfilCRUD = () => {
     const [error, setError] = useState("");
     const [showModal, setShowModal] = useState(false);
     const [contraseñaTemporal, setContraseñaTemporal] = useState("");
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [qrToken, setQrToken] = useState("");
+    const [qrExpira, setQrExpira] = useState("");
+    const [qrLoading, setQrLoading] = useState(false);
+    const [qrPerfilId, setQrPerfilId] = useState(null);
+    const [qrImage, setQrImage] = useState("");
+    const [showVincularModal, setShowVincularModal] = useState(false);
+    const [perfilVincular, setPerfilVincular] = useState(null);
     const navigate = useNavigate();
 
     const [formData, setFormData] = useState({
@@ -69,6 +79,30 @@ const PerfilCRUD = () => {
         });
     };
 
+    const generarQrTemporal = async (perfilId) => {
+        setQrLoading(true);
+        setQrToken("");
+        setQrExpira("");
+        setQrImage("");
+        try {
+            const data = await generarQrVinculacion(perfilId);
+            if (data.qr_data) {
+                setQrToken(data.qr_data);
+                setQrExpira(data.vinculacion?.fecha_expiracion || "10 min");
+                setQrPerfilId(perfilId);
+                // Generar QR como imagen
+                const qrUrl = await QRCode.toDataURL(data.qr_data);
+                setQrImage(qrUrl);
+            }
+        } catch (err) {
+            setQrToken("");
+            setQrExpira("");
+            setQrImage("");
+        } finally {
+            setQrLoading(false);
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError("");
@@ -82,14 +116,8 @@ const PerfilCRUD = () => {
         try {
             setLoading(true);
             const response = await crearPerfil(formData);
-            
-            // Mostrar la contraseña temporal
             setContraseñaTemporal(response.contraseña_temporal);
-            
-            // Recargar perfiles
             await cargarPerfiles();
-            
-            // Limpiar formulario
             setFormData({
                 ci: '',
                 nombre: '',
@@ -99,9 +127,12 @@ const PerfilCRUD = () => {
                 direccion: '',
                 fecha_nacimiento: ''
             });
-
-            alert(`¡Perfil creado exitosamente!\n\nContraseña temporal: ${response.contraseña_temporal}\n\nGuarda esta contraseña, es la única vez que se mostrará.`);
-            
+            // Generar QR temporal tras crear perfil (usar id correcto)
+            const perfilId = response.id || response.perfil?.id;
+            if (perfilId) {
+                await generarQrTemporal(perfilId);
+            }
+            setShowSuccessModal(true);
             setShowModal(false);
         } catch (err) {
             console.error('Error al crear perfil:', err);
@@ -109,6 +140,27 @@ const PerfilCRUD = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleGenerarNuevoQr = async () => {
+        if (qrPerfilId) {
+            await generarQrTemporal(qrPerfilId);
+        }
+    };
+
+    // Para botón de vinculación en la lista de perfiles
+    const handleVincularDispositivo = async (perfil) => {
+        setPerfilVincular(perfil);
+        setShowVincularModal(true);
+        await generarQrTemporal(perfil.id);
+    };
+
+    const handleCerrarVincularModal = () => {
+        setShowVincularModal(false);
+        setPerfilVincular(null);
+        setQrToken("");
+        setQrExpira("");
+        setQrPerfilId(null);
     };
 
     const getInitials = (nombre, apellido) => {
@@ -223,8 +275,80 @@ const PerfilCRUD = () => {
                                         Creado: {new Date(perfil.fecha_creacion).toLocaleDateString()}
                                     </p>
                                 </div>
+                                <div className="mt-4 flex gap-2">
+                                    <button
+                                        onClick={() => handleVincularDispositivo(perfil)}
+                                        className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow hover:bg-blue-700 transition"
+                                    >
+                                        Vincular dispositivo
+                                    </button>
+                                </div>
                             </div>
                         ))}
+                {/* Modal de éxito con QR tras crear perfil */}
+                {showSuccessModal && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-lg p-8 shadow-lg max-w-md w-full flex flex-col items-center">
+                            <h2 className="text-2xl font-bold mb-4 text-blue-700">¡Perfil creado exitosamente!</h2>
+                            {contraseñaTemporal && (
+                                <div className="mb-4 text-sm text-gray-700">
+                                    <strong>Contraseña temporal:</strong> <span className="bg-blue-100 px-2 py-1 rounded">{contraseñaTemporal}</span>
+                                    <div className="mt-2 text-xs text-gray-600">Guarda esta contraseña, es la única vez que se mostrará.</div>
+                                </div>
+                            )}
+                            {qrToken && (
+                                <div className="mb-4 flex flex-col items-center">
+                                    {qrImage && <img src={qrImage} alt="QR de vinculación" style={{ width: 180, height: 180 }} />}
+                                    <div className="mt-1 text-xs text-gray-600">Expira en: <span className="bg-yellow-100 px-2 py-1 rounded">{qrExpira || "10 min"}</span></div>
+                                    <button
+                                        onClick={handleGenerarNuevoQr}
+                                        disabled={qrLoading}
+                                        className="mt-3 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition disabled:opacity-50"
+                                    >
+                                        {qrLoading ? "Generando..." : "Generar nuevo QR temporal"}
+                                    </button>
+                                </div>
+                            )}
+                            <button
+                                onClick={() => { setShowSuccessModal(false); setContraseñaTemporal(""); setQrToken(""); setQrExpira(""); setQrPerfilId(null); }}
+                                className="mt-4 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-700"
+                            >
+                                Cerrar
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Modal de vinculación desde la lista de perfiles */}
+                {showVincularModal && perfilVincular && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-lg p-8 shadow-lg max-w-md w-full flex flex-col items-center">
+                            <h2 className="text-2xl font-bold mb-4 text-blue-700">Vincular dispositivo</h2>
+                            <div className="mb-2 text-sm text-gray-700">
+                                <strong>Perfil:</strong> {perfilVincular.nombre} {perfilVincular.apellido}
+                            </div>
+                            {qrToken && (
+                                <div className="mb-4 flex flex-col items-center">
+                                    {qrImage && <img src={qrImage} alt="QR de vinculación" style={{ width: 180, height: 180 }} />}
+                                    <div className="mt-1 text-xs text-gray-600">Expira en: <span className="bg-yellow-100 px-2 py-1 rounded">{qrExpira || "10 min"}</span></div>
+                                    <button
+                                        onClick={handleGenerarNuevoQr}
+                                        disabled={qrLoading}
+                                        className="mt-3 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition disabled:opacity-50"
+                                    >
+                                        {qrLoading ? "Generando..." : "Generar nuevo QR temporal"}
+                                    </button>
+                                </div>
+                            )}
+                            <button
+                                onClick={handleCerrarVincularModal}
+                                className="mt-4 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-700"
+                            >
+                                Cerrar
+                            </button>
+                        </div>
+                    </div>
+                )}
                     </div>
                 )}
 

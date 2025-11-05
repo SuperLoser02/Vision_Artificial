@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { logout } from "../../services/Api";
+import { logout, obtenerEstadoCamara } from "../../services/Api";
+import api from "../../services/Api";
 
 const Dashboard = () => {
     const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -13,7 +14,50 @@ const Dashboard = () => {
         zona: ''
     });
     const [loading, setLoading] = useState(false);
+    const [editId, setEditId] = useState(null);
+    const [editData, setEditData] = useState({});
+    const [estados, setEstados] = useState({});
+    const [fullscreenImg, setFullscreenImg] = useState(null);
     const navigate = useNavigate();
+    // Cargar cámaras del perfil al montar y actualizar estado cada 5 segundos
+    useEffect(() => {
+        let intervalId;
+        const fetchCamaras = async () => {
+            setLoading(true);
+            try {
+                const res = await api.get('camaras/por_perfil/');
+                setCamaras(res.data);
+                // Consultar estado de cada cámara
+                const estadosTemp = {};
+                for (const cam of res.data) {
+                    if (cam.detalles && cam.detalles.length > 0) {
+                        const detalle = cam.detalles[0];
+                        const estado = await obtenerEstadoCamara(detalle.id);
+                        estadosTemp[detalle.id] = estado;
+                    }
+                }
+                setEstados(estadosTemp);
+            } catch (error) {
+                setCamaras([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchCamaras();
+        intervalId = setInterval(async () => {
+            // Solo actualizar estado, no recargar cámaras
+            const estadosTemp = {};
+            for (const cam of camaras) {
+                if (cam.detalles && cam.detalles.length > 0) {
+                    const detalle = cam.detalles[0];
+                    const estado = await obtenerEstadoCamara(detalle.id);
+                    estadosTemp[detalle.id] = estado;
+                }
+            }
+            setEstados(estadosTemp);
+        }, 5000);
+        return () => clearInterval(intervalId);
+    }, [camaras.length]);
 
     const toggleSidebar = () => {
         setSidebarOpen(!sidebarOpen);
@@ -32,14 +76,29 @@ const Dashboard = () => {
         navigate('/categorias');
     };
 
+    const handleIrANotificaciones = () => {
+        navigate('/notificaciones');
+    };
+
     // Función para detectar cámaras automáticamente
     const detectarCamaras = async () => {
         setLoading(true);
         try {
-            const res = await fetch("/api/detectar/");
-            const data = await res.json();
-            setCamaras(data);
-            alert(`Se detectaron ${data.length} cámara(s)`);
+            const res = await api.get('detectar/');
+            // El backend devuelve solo las nuevas detectadas, refrescamos la lista completa
+            const resPerfil = await api.get('camaras/por_perfil/');
+            setCamaras(resPerfil.data);
+            alert(`Se detectaron ${res.data.length} cámara(s)`);
+            // Consultar estado de cada cámara
+            const estadosTemp = {};
+            for (const cam of resPerfil.data) {
+                if (cam.detalles && cam.detalles.length > 0) {
+                    const detalle = cam.detalles[0];
+                    const estado = await obtenerEstadoCamara(detalle.id);
+                    estadosTemp[detalle.id] = estado;
+                }
+            }
+            setEstados(estadosTemp);
         } catch (error) {
             alert("No se pudieron detectar cámaras.");
         } finally {
@@ -52,25 +111,52 @@ const Dashboard = () => {
         e.preventDefault();
         setLoading(true);
         try {
-            const res = await fetch("/api/registrar/", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(formData)
-            });
-            const data = await res.json();
-            
-            if (res.ok) {
+            const res = await api.post('registrar/', formData);
+            if (res.data && res.data.camara) {
                 alert("Cámara registrada exitosamente");
-                setCamaras([...camaras, data.camara]);
+                // Refrescar lista
+                const resPerfil = await api.get('camaras/por_perfil/');
+                setCamaras(resPerfil.data);
                 setShowModal(false);
                 setFormData({ ip: '', puerto: '8080', protocolo: 'http', zona: '' });
             } else {
-                alert(`Error: ${data.error || 'No se pudo registrar la cámara'}`);
+                alert(`Error: ${res.data.error || 'No se pudo registrar la cámara'}`);
             }
         } catch (error) {
             alert("Error al registrar la cámara.");
+        } finally {
+            setLoading(false);
+        }
+    };
+    // Función para editar detalles de cámara
+    const handleEditClick = (detalle) => {
+        setEditId(detalle.id);
+        setEditData({
+            n_camara: detalle.n_camara,
+            zona: detalle.zona,
+            ip: detalle.ip,
+            marca: detalle.marca,
+            resolucion: detalle.resolucion
+        });
+    };
+
+    const handleEditChange = (e) => {
+        setEditData({
+            ...editData,
+            [e.target.name]: e.target.value
+        });
+    };
+
+    const handleEditSave = async () => {
+        setLoading(true);
+        try {
+            await api.patch(`camara-detalles/${editId}/`, editData);
+            // Refrescar lista
+            const resPerfil = await api.get('camaras/por_perfil/');
+            setCamaras(resPerfil.data);
+            setEditId(null);
+        } catch (error) {
+            alert("Error al editar la cámara");
         } finally {
             setLoading(false);
         }
@@ -111,6 +197,14 @@ const Dashboard = () => {
                     >
                         <span className="text-2xl">📋</span>
                         {sidebarOpen && <span className="font-medium">Categorías</span>}
+                    </li>
+                    <li
+                        onClick={handleIrANotificaciones}
+                        className="p-4 hover:bg-blue-700 cursor-pointer flex items-center gap-3 transition-colors duration-200"
+                        title="Notificaciones"
+                    >
+                        <span className="text-2xl">🔔</span>
+                        {sidebarOpen && <span className="font-medium">Notificaciones</span>}
                     </li>
                 </ul>
                 
@@ -157,19 +251,52 @@ const Dashboard = () => {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {camaras.length > 0 ? (
-                        camaras.map((cam, i) => (
-                            <div
-                                key={i}
-                                className="bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300"
-                            >
-                                <h2 className="text-lg font-semibold">Cámara {i + 1}</h2>
-                                <p className="text-gray-600">IP: {cam.ip}</p>
-                                <p className="text-gray-600">Marca: {cam.marca}</p>
-                                <p className="text-gray-600">Resolución: {cam.resolucion}</p>
-                                {/* Puedes agregar una vista previa si tienes la URL */}
-                                <img src={cam.stream_url} alt={`Cámara ${i + 1}`} className="mt-2 w-full h-40 object-cover" />
-                            </div>
-                        ))
+                        camaras.map((cam, i) => {
+                            const detalle = cam.detalles && cam.detalles.length > 0 ? cam.detalles[0] : null;
+                            const estado = detalle ? estados[detalle.id] : null;
+                            return (
+                                <div
+                                    key={cam.id}
+                                    className="bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300"
+                                >
+                                    <h2 className="text-lg font-semibold">Cámara {i + 1}</h2>
+                                    {detalle ? (
+                                        <>
+                                            <p className="text-gray-600">IP: {detalle.ip}</p>
+                                            <p className="text-gray-600">Zona: {detalle.zona}</p>
+                                            <p className="text-gray-600">Marca: {detalle.marca}</p>
+                                            <p className="text-gray-600">Resolución: {detalle.resolucion}</p>
+                                            <p className={`font-bold ${estado?.estado === 'ok' ? 'text-green-600' : 'text-red-600'}`}>Estado: {estado?.estado === 'ok' ? 'Conectada' : 'Sin señal'}</p>
+                                            {/* Vista previa o imagen de error */}
+                                            {estado?.estado === 'ok' ? (
+                                                <div className="mt-2 w-full cursor-pointer" style={{ aspectRatio: '4/3', background: '#222' }} onClick={() => setFullscreenImg(detalle.stream_url || cam.stream_url)}>
+                                                    <img src={detalle.stream_url || cam.stream_url} alt={`Cámara ${i + 1}`} className="w-full h-full object-contain" style={{ maxHeight: '100%', maxWidth: '100%' }} />
+                                                </div>
+                                            ) : (
+                                                <div className="mt-2 w-full h-40 flex items-center justify-center bg-gray-100 text-red-600 text-4xl">
+                                                    <span role="img" aria-label="error">📷❌</span>
+                                                </div>
+                                            )}
+                {/* Modal para imagen en pantalla completa */}
+                {fullscreenImg && (
+                    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50" onClick={() => setFullscreenImg(null)}>
+                        <img src={fullscreenImg} alt="Vista completa" className="max-w-full max-h-full object-contain shadow-2xl" />
+                        <button className="absolute top-6 right-8 text-white text-3xl font-bold bg-black bg-opacity-50 rounded-full px-4 py-2" onClick={() => setFullscreenImg(null)}>
+                            &times;
+                        </button>
+                    </div>
+                )}
+                                            <button
+                                                className="mt-2 px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600"
+                                                onClick={() => handleEditClick(detalle)}
+                                            >Editar</button>
+                                        </>
+                                    ) : (
+                                        <p className="text-gray-600">Sin detalles de cámara</p>
+                                    )}
+                                </div>
+                            );
+                        })
                     ) : (
                         Array.from({ length: 6 }, (_, i) => (
                             <div
@@ -182,6 +309,40 @@ const Dashboard = () => {
                         ))
                     )}
                 </div>
+                {/* Modal para editar detalles de cámara */}
+                {editId && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                        <div className="bg-white rounded-lg p-6 w-96">
+                            <h2 className="text-xl font-bold mb-4">Editar Detalles de Cámara</h2>
+                            <form onSubmit={e => { e.preventDefault(); handleEditSave(); }}>
+                                <div className="mb-4">
+                                    <label className="block text-gray-700 mb-2">Número de Cámara</label>
+                                    <input type="number" name="n_camara" value={editData.n_camara} onChange={handleEditChange} className="w-full px-3 py-2 border rounded" />
+                                </div>
+                                <div className="mb-4">
+                                    <label className="block text-gray-700 mb-2">Zona</label>
+                                    <input type="text" name="zona" value={editData.zona} onChange={handleEditChange} className="w-full px-3 py-2 border rounded" />
+                                </div>
+                                <div className="mb-4">
+                                    <label className="block text-gray-700 mb-2">IP</label>
+                                    <input type="text" name="ip" value={editData.ip} onChange={handleEditChange} className="w-full px-3 py-2 border rounded" />
+                                </div>
+                                <div className="mb-4">
+                                    <label className="block text-gray-700 mb-2">Marca</label>
+                                    <input type="text" name="marca" value={editData.marca} onChange={handleEditChange} className="w-full px-3 py-2 border rounded" />
+                                </div>
+                                <div className="mb-4">
+                                    <label className="block text-gray-700 mb-2">Resolución</label>
+                                    <input type="text" name="resolucion" value={editData.resolucion} onChange={handleEditChange} className="w-full px-3 py-2 border rounded" />
+                                </div>
+                                <div className="flex gap-2">
+                                    <button type="submit" disabled={loading} className="flex-1 px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 disabled:bg-gray-400">Guardar</button>
+                                    <button type="button" onClick={() => setEditId(null)} className="flex-1 px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">Cancelar</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
 
                 {/* Modal para agregar cámara manualmente */}
                 {showModal && (

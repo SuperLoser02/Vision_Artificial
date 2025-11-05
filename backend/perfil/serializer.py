@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Perfil, Categoria, Perfil_Categoria
+from .models import Perfil, Categoria, Perfil_Categoria, VinculacionDispositivo
 from django.contrib.auth.models import User
 
 class PerfilSerializer(serializers.ModelSerializer):
@@ -35,3 +35,8 @@ class UserCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         user = User.objects.create_user(**validated_data)
         return user
+
+class VinculacionDispositivoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VinculacionDispositivo
+        fields = '__all__'
