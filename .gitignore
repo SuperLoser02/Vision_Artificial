@@ -40,6 +40,11 @@ backend/media/
 postgres_data/
 
 # media
+media/videos_de_ia/*
+media/videos_seguridad/*
+
+!media/videos_de_ia/.gitkeep
+!media/videos_seguridad/.gitkeep
 
 
 agent.md

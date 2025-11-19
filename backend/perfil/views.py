@@ -493,13 +493,23 @@ class PerfilViewSet(viewsets.ModelViewSet):
             return Response({"detail": "Contraseña incorrecta."}, 
                 status=status.HTTP_401_UNAUTHORIZED
             )
+        
+        # Actualizar sesión personalizada
         sesion = Sesion_del_Perfil.objects.filter(perfil=perfil, is_active=True).first() 
         if sesion: 
             sesion.ultima_actividad = now() 
             sesion.save() 
         else: 
-            sesion = Sesion_del_Perfil.objects.create( perfil=perfil, token=uuid.uuid4().hex) 
-        return Response({"token": sesion.token}, status=200)
+            sesion = Sesion_del_Perfil.objects.create(perfil=perfil, token=uuid.uuid4().hex)
+        
+        # Obtener o crear token DRF para el user asociado al perfil
+        drf_token, created = Token.objects.get_or_create(user=perfil.user_id)
+        
+        return Response({
+            "token": drf_token.key,  # Token DRF para autenticación API/WebSocket
+            "session_token": sesion.token,  # Token de sesión personalizado (legacy)
+            "perfil": PerfilSerializer(perfil).data
+        }, status=200)
     
     @action(detail=False, methods=['patch'])
     def cerrar_sesion(self, request):

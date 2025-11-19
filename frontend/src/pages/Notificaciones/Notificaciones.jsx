@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import api, { obtenerPerfiles } from "../../services/Api";
 import { useNavigate } from "react-router-dom";
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const nivelesColores = [
   'from-red-500 to-red-600',
@@ -44,9 +46,11 @@ const Notificaciones = () => {
   const [detalle, setDetalle] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
-    perfil_id: "",
+    perfil: "",
+    titulo: "",
     mensaje: "",
     tipo: "violencia",
+    prioridad: "media",
     nivel_peligro: "rojo",
     canal: "dashboard",
     zona: ""
@@ -55,16 +59,154 @@ const Notificaciones = () => {
   const [formError, setFormError] = useState("");
   const [formLoading, setFormLoading] = useState(false);
   const navigate = useNavigate();
+  const wsRef = useRef(null);
+  const reconnectTimeoutRef = useRef(null);
 
   // Obtener perfil actual del localStorage
   const perfilActual = JSON.parse(localStorage.getItem("perfilActual"));
   const perfilId = perfilActual?.id;
+  const token = localStorage.getItem("token");
 
   useEffect(() => {
     cargarNotificaciones();
     cargarPerfiles();
+    
+    // Conectar WebSocket
+    if (perfilId && token) {
+      conectarWebSocket();
+    }
+
+    return () => {
+      // Limpiar al desmontar
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+    };
     // eslint-disable-next-line
   }, [filtros]);
+
+  const conectarWebSocket = () => {
+    try {
+      // Usar variable de entorno o detectar host automáticamente
+      const wsHost = import.meta.env.VITE_WS_HOST || window.location.hostname;
+      const wsPort = import.meta.env.VITE_WS_PORT || '8000';
+      const wsUrl = `ws://${wsHost}:${wsPort}/ws/notificaciones/${perfilId}/?token=${token}`;
+      console.log('🔌 Conectando a WebSocket:', wsUrl);
+      
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        console.log('✅ WebSocket conectado');
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('📩 Mensaje WebSocket recibido:', data);
+
+          switch (data.type) {
+            case 'notificacion_leida':
+              // Guardia leyó una notificación
+              handleNotificacionLeida(data);
+              break;
+
+            case 'nueva_notificacion':
+              // Nueva notificación creada
+              handleNuevaNotificacion(data);
+              break;
+
+            default:
+              break;
+          }
+        } catch (error) {
+          console.error('❌ Error procesando mensaje WebSocket:', error);
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error('❌ Error en WebSocket:', error);
+      };
+
+      ws.onclose = () => {
+        console.log('🔌 WebSocket desconectado, reconectando en 3s...');
+        wsRef.current = null;
+        // Reconectar después de 3 segundos
+        reconnectTimeoutRef.current = setTimeout(() => {
+          conectarWebSocket();
+        }, 3000);
+      };
+    } catch (error) {
+      console.error('❌ Error al conectar WebSocket:', error);
+    }
+  };
+
+  const handleNotificacionLeida = (data) => {
+    const { notificacion_id, perfil_nombre, fecha_lectura } = data;
+    
+    // Actualizar la notificación en la lista
+    setNotificaciones(prev => prev.map(n => 
+      n.id === notificacion_id 
+        ? { ...n, leida: true, fecha_lectura: fecha_lectura || new Date().toISOString() }
+        : n
+    ));
+
+    // Mostrar toast bonito
+    if (perfil_nombre && perfil_nombre !== perfilActual?.nombre) {
+      toast.success(
+        <div className="flex items-center gap-3">
+          <div className="text-2xl">✓</div>
+          <div>
+            <p className="font-semibold">{perfil_nombre} leyó la alerta</p>
+            <p className="text-sm text-gray-600">
+              {new Date(fecha_lectura || Date.now()).toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </p>
+          </div>
+        </div>,
+        {
+          position: "top-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          className: 'bg-white shadow-lg',
+        }
+      );
+    }
+  };
+
+  const handleNuevaNotificacion = (data) => {
+    const { notificacion } = data;
+    
+    // Agregar al inicio de la lista
+    setNotificaciones(prev => [notificacion, ...prev]);
+
+    // Toast para nueva notificación
+    toast.info(
+      <div className="flex items-center gap-3">
+        <div className="text-2xl">🔔</div>
+        <div>
+          <p className="font-semibold">{notificacion.titulo}</p>
+          <p className="text-sm text-gray-600">{notificacion.mensaje}</p>
+        </div>
+      </div>,
+      {
+        position: "top-right",
+        autoClose: 7000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      }
+    );
+  };
 
   const cargarNotificaciones = async () => {
     setLoading(true);
@@ -75,10 +217,30 @@ const Notificaciones = () => {
       Object.entries(filtros).forEach(([k, v]) => {
         if (v) params[k] = v;
       });
+      console.log('Cargando notificaciones con params:', params);
       const res = await api.get("notificaciones/", { params });
-      setNotificaciones(res.data);
+      console.log('Notificaciones recibidas:', res.data);
+      console.log('Tipo de datos:', typeof res.data, 'Es array:', Array.isArray(res.data));
+      
+      // El backend puede devolver { count, results } o directamente un array
+      let notifs = [];
+      if (res.data && res.data.results) {
+        // Formato con paginación
+        notifs = Array.isArray(res.data.results) ? res.data.results : [];
+        console.log('Formato paginado, notificaciones:', notifs.length);
+      } else if (Array.isArray(res.data)) {
+        // Formato array directo
+        notifs = res.data;
+        console.log('Formato array directo, notificaciones:', notifs.length);
+      } else {
+        console.warn('Formato de respuesta no reconocido:', res.data);
+      }
+      
+      setNotificaciones(notifs);
     } catch (err) {
-      setError("No se pudieron cargar las notificaciones");
+      console.error('Error al cargar notificaciones:', err);
+      setError(err.detail || err.error || "No se pudieron cargar las notificaciones");
+      setNotificaciones([]); // Asegurar array vacío en caso de error
     }
     setLoading(false);
   };
@@ -86,8 +248,10 @@ const Notificaciones = () => {
   const cargarPerfiles = async () => {
     try {
       const data = await obtenerPerfiles();
+      console.log('Perfiles cargados:', data);
       setPerfiles(data);
     } catch (err) {
+      console.error('Error al cargar perfiles:', err);
       setPerfiles([]);
     }
   };
@@ -112,25 +276,35 @@ const Notificaciones = () => {
   const handleEnviarNotificacion = async (e) => {
     e.preventDefault();
     setFormError("");
-    if (!formData.perfil_id || !formData.mensaje.trim()) {
+    if (!formData.perfil || !formData.mensaje.trim()) {
       setFormError("Debes seleccionar un perfil y escribir un mensaje.");
       return;
     }
+    
+    // Si no hay título, generar uno basado en el tipo
+    const dataToSend = {
+      ...formData,
+      titulo: formData.titulo.trim() || `${formData.tipo.charAt(0).toUpperCase() + formData.tipo.slice(1)} detectado`
+    };
+    
     setFormLoading(true);
     try {
-      await api.post("notificaciones/", formData);
+      await api.post("notificaciones/", dataToSend);
       setShowForm(false);
       setFormData({
-        perfil_id: "",
+        perfil: "",
+        titulo: "",
         mensaje: "",
         tipo: "violencia",
+        prioridad: "media",
         nivel_peligro: "rojo",
         canal: "dashboard",
         zona: ""
       });
       cargarNotificaciones();
     } catch (err) {
-      setFormError("No se pudo enviar la notificación");
+      console.error('Error al enviar notificación:', err);
+      setFormError(err.detail || err.error || "No se pudo enviar la notificación");
     }
     setFormLoading(false);
   };
@@ -173,8 +347,8 @@ const Notificaciones = () => {
               <div className="mb-4">
                 <label className="block text-gray-700 font-medium mb-2">Perfil destinatario *</label>
                 <select
-                  name="perfil_id"
-                  value={formData.perfil_id}
+                  name="perfil"
+                  value={formData.perfil}
                   onChange={handleFormChange}
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
                   required
@@ -182,9 +356,21 @@ const Notificaciones = () => {
                 >
                   <option value="">Selecciona un perfil</option>
                   {perfiles.map((p) => (
-                    <option key={p.id} value={p.id}>{p.nombre}</option>
+                    <option key={p.id} value={p.id}>{p.nombre} {p.apellido}</option>
                   ))}
                 </select>
+              </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 font-medium mb-2">Título (opcional)</label>
+                <input
+                  type="text"
+                  name="titulo"
+                  value={formData.titulo}
+                  onChange={handleFormChange}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  placeholder="Título de la notificación (se genera automáticamente si está vacío)"
+                  disabled={formLoading}
+                />
               </div>
               <div className="mb-4">
                 <label className="block text-gray-700 font-medium mb-2">Mensaje *</label>
@@ -193,24 +379,33 @@ const Notificaciones = () => {
                   value={formData.mensaje}
                   onChange={handleFormChange}
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  placeholder="Escribe el mensaje de la notificación..."
+                  placeholder="Escribe el mensaje de la notificación (mínimo 10 caracteres)..."
                   rows="3"
                   required
                   disabled={formLoading}
+                  minLength={10}
                 />
               </div>
               <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-2">
                 <div>
                   <label className="block text-gray-700 font-medium mb-2">Tipo</label>
-                  <select name="tipo" value={formData.tipo} onChange={handleFormChange} className="w-full px-2 py-2 rounded" disabled={formLoading}>
+                  <select name="tipo" value={formData.tipo} onChange={handleFormChange} className="w-full px-2 py-2 rounded border" disabled={formLoading}>
                     {tipos.map((t) => (
                       <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
                     ))}
                   </select>
                 </div>
                 <div>
+                  <label className="block text-gray-700 font-medium mb-2">Prioridad</label>
+                  <select name="prioridad" value={formData.prioridad} onChange={handleFormChange} className="w-full px-2 py-2 rounded border" disabled={formLoading}>
+                    <option value="alta">Alta</option>
+                    <option value="media">Media</option>
+                    <option value="baja">Baja</option>
+                  </select>
+                </div>
+                <div>
                   <label className="block text-gray-700 font-medium mb-2">Nivel de peligro</label>
-                  <select name="nivel_peligro" value={formData.nivel_peligro} onChange={handleFormChange} className="w-full px-2 py-2 rounded" disabled={formLoading}>
+                  <select name="nivel_peligro" value={formData.nivel_peligro} onChange={handleFormChange} className="w-full px-2 py-2 rounded border" disabled={formLoading}>
                     {niveles.map((n) => (
                       <option key={n} value={n}>{n.charAt(0).toUpperCase() + n.slice(1)}</option>
                     ))}
@@ -218,24 +413,24 @@ const Notificaciones = () => {
                 </div>
                 <div>
                   <label className="block text-gray-700 font-medium mb-2">Canal</label>
-                  <select name="canal" value={formData.canal} onChange={handleFormChange} className="w-full px-2 py-2 rounded" disabled={formLoading}>
+                  <select name="canal" value={formData.canal} onChange={handleFormChange} className="w-full px-2 py-2 rounded border" disabled={formLoading}>
                     {canales.map((c) => (
                       <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
                     ))}
                   </select>
                 </div>
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">Zona</label>
-                  <input
-                    type="text"
-                    name="zona"
-                    value={formData.zona}
-                    onChange={handleFormChange}
-                    className="w-full px-2 py-2 rounded"
-                    placeholder="Zona de interés"
-                    disabled={formLoading}
-                  />
-                </div>
+              </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 font-medium mb-2">Zona</label>
+                <input
+                  type="text"
+                  name="zona"
+                  value={formData.zona}
+                  onChange={handleFormChange}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  placeholder="Zona de interés (opcional)"
+                  disabled={formLoading}
+                />
               </div>
               <div className="flex gap-2 mt-4">
                 <button
@@ -294,11 +489,11 @@ const Notificaciones = () => {
         )}
 
         {/* Lista de notificaciones */}
-        {loading && notificaciones.length === 0 ? (
+        {loading && (!Array.isArray(notificaciones) || notificaciones.length === 0) ? (
           <div className="text-white text-center text-2xl py-20">
             Cargando notificaciones...
           </div>
-        ) : notificaciones.length === 0 ? (
+        ) : !Array.isArray(notificaciones) || notificaciones.length === 0 ? (
           <div className="bg-white bg-opacity-10 backdrop-blur-md rounded-lg p-12 text-center text-white">
             <div className="text-6xl mb-4">🔔</div>
             <h2 className="text-2xl font-bold mb-4">No hay notificaciones registradas</h2>
@@ -306,9 +501,9 @@ const Notificaciones = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {notificaciones.map((n, index) => (
+            {Array.isArray(notificaciones) && notificaciones.map((n, index) => (
               <div
-                key={n.id}
+                key={n.id || index}
                 className="bg-white rounded-lg shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden cursor-pointer"
                 onClick={() => setDetalle(n)}
               >
@@ -319,16 +514,41 @@ const Notificaciones = () => {
                       Canal: {n.canal}
                     </div>
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-900">{n.tipo.charAt(0).toUpperCase() + n.tipo.slice(1)}</h3>
+                  <h3 className="text-2xl font-bold text-gray-900">{n.tipo?.charAt(0).toUpperCase() + n.tipo?.slice(1)}</h3>
                 </div>
                 <div className="p-6">
                   <p className="mb-4 min-h-[60px] text-gray-900">{n.mensaje}</p>
                   <div className="text-xs text-gray-700 mb-2">
                     Zona: {n.zona || "Sin zona"}
                   </div>
-                  <div className="text-xs text-gray-700 mb-4">
-                    {new Date(n.fecha_hora).toLocaleString()}
+                  <div className="text-xs text-gray-700 mb-2">
+                    {n.fecha_hora ? new Date(n.fecha_hora).toLocaleString() : 'Sin fecha'}
                   </div>
+                  
+                  {/* Badge de estado leída */}
+                  {n.leida && (
+                    <div className="mb-3 bg-green-50 border border-green-200 rounded-lg p-2">
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="text-green-600 text-lg">✓</span>
+                        <div className="flex-1">
+                          <p className="text-green-700 font-semibold">
+                            Leída
+                          </p>
+                          {n.fecha_lectura && (
+                            <p className="text-green-600">
+                              {new Date(n.fecha_lectura).toLocaleString('es-ES', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
                   <div className="flex gap-2">
                     {!n.leida && (
                       <button
@@ -363,6 +583,14 @@ const Notificaciones = () => {
           </div>
         )}
       </div>
+      
+      {/* Toast Container para notificaciones en tiempo real */}
+      <ToastContainer 
+        position="top-right"
+        theme="light"
+        newestOnTop
+        limit={3}
+      />
     </div>
   );
 };
