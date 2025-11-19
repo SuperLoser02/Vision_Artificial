@@ -32,6 +32,7 @@ ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'backend', '*']
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',  # ← Debe estar primero para ASGI
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -43,6 +44,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',  # ← Agregado para autenticación con Token
     'drf_spectacular',
+    'channels',  # ← WebSockets
+    'fcm_django',  # ← Firebase Cloud Messaging
     
     #Nuestras apps
     'perfil',
@@ -84,6 +87,25 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'visual_safety.wsgi.application'
+ASGI_APPLICATION = 'visual_safety.asgi.application'
+
+# Configuración de Channels (WebSockets)
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [(os.getenv('REDIS_HOST', 'redis'), int(os.getenv('REDIS_PORT', 6379)))],
+        },
+    },
+}
+
+# Configuración de Firebase Cloud Messaging
+FCM_DJANGO_SETTINGS = {
+    # Ruta al archivo de credenciales de Firebase (lo crearemos después)
+    "FCM_SERVER_KEY": os.getenv('FCM_SERVER_KEY', ''),
+    "ONE_DEVICE_PER_USER": False,  # Permite múltiples dispositivos por usuario
+    "DELETE_INACTIVE_DEVICES": True,
+}
 
 # drf-spectacular settings
 SPECTACULAR_SETTINGS = {

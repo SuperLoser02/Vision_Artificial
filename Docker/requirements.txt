@@ -9,3 +9,13 @@ pillow==11.2.1
 python-dotenv==1.1.0
 python-dateutil==2.9.0.post0
 watchfiles==0.24.0
+
+# WebSockets y Notificaciones Push
+channels==4.0.0
+channels-redis==4.1.0
+redis==5.0.1
+daphne==4.0.0
+
+# Firebase Cloud Messaging
+firebase-admin==6.4.0
+fcm-django==2.0.0

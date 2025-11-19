@@ -31,6 +31,6 @@ else
   echo "✅ Superusuario ya existe."
 fi
 
-# Iniciar el servidor de Django
-echo "🚀 Iniciando Django..."
-python manage.py runserver 0.0.0.0:8000
+# Iniciar el servidor de Django con Daphne (ASGI para WebSockets)
+echo "🚀 Iniciando Django con Daphne (soporte WebSockets)..."
+daphne -b 0.0.0.0 -p 8000 visual_safety.asgi:application
