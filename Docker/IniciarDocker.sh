@@ -1,4 +1,5 @@
 #!/bin/bash
+
 # Solo crear el proyecto si no existe manage.py
 if [ ! -f "/app/backend/manage.py" ]; then
   echo "🛠️ Creando proyecto Django..."
@@ -33,4 +34,6 @@ fi
 
 # Iniciar el servidor de Django
 echo "🚀 Iniciando Django..."
-python manage.py runserver 0.0.0.0:8000
+# python manage.py runserver 0.0.0.0:8000
+
+daphne -b 0.0.0.0 -p 8000 visual_safety.asgi:application

@@ -32,6 +32,7 @@ ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'backend', '*']
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -43,6 +44,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',  # ← Agregado para autenticación con Token
     'drf_spectacular',
+    'channels',
     
     #Nuestras apps
     'perfil',
@@ -50,6 +52,7 @@ INSTALLED_APPS = [
     'reporte',
     'camaras',
     'notificaciones',
+    'ia_detection',
 ]
 
 MIDDLEWARE = [
@@ -82,6 +85,17 @@ TEMPLATES = [
         },
     },
 ]
+
+ASGI_APPLICATION = 'visual_safety.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [(os.getenv('REDIS_HOST', 'redis'), int(os.getenv('REDIS_PORT', 6379)))],
+        },
+    },
+}
 
 WSGI_APPLICATION = 'visual_safety.wsgi.application'
 
@@ -150,6 +164,16 @@ USE_I18N = True
 
 USE_TZ = True
 
+CELERY_BROKER_URL = "redis://redis:6379/0"
+
+CELERY_RESULT_BACKEND = "redis://redis:6379/0"
+
+# Opcional pero recomendado
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = "America/La_Paz"
+CELERY_ENABLE_UTC = False
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
@@ -160,3 +184,10 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_URL = '/media/'
+
+ML_MODEL_DIR = BASE_DIR / 'ml_models'
+DETECTION_MODEL_PATH = ML_MODEL_DIR / 'best_model.pth'

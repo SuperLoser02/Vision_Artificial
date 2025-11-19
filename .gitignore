@@ -39,5 +39,7 @@ backend/media/
 # Docker
 postgres_data/
 
+# media
+
 
 agent.md

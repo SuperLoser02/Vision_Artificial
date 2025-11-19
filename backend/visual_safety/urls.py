@@ -28,4 +28,5 @@ urlpatterns = [
     path('api/', include('reporte.urls')),
     path('api/', include('camaras.urls')),
     path('api/', include('notificaciones.urls')),
+    path('api/', include('ia_detection.urls')),
 ]
