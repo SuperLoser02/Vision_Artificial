@@ -2,11 +2,11 @@
 WebSocket URL routing for visual_safety project.
 """
 
-from django.urls import path
-#from notificaciones.consumers import NotificacionConsumer
+from django.urls import re_path
+from notificaciones.consumers import NotificacionConsumer
 
 websocket_urlpatterns = [
-    # path('ws/notificaciones/', NotificacionConsumer.as_asgi()),
+    re_path(r'ws/notificaciones/(?P<perfil_id>\d+)/$', NotificacionConsumer.as_asgi()),
     # Puedes agregar más rutas WebSocket aquí según necesites
-    # path('ws/camaras/<int:camara_id>/', CamaraConsumer.as_asgi()),
+    # re_path(r'ws/camaras/(?P<camara_id>\d+)/$', CamaraConsumer.as_asgi()),
 ]

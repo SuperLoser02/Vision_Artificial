@@ -382,8 +382,13 @@ class PerfilViewSet(viewsets.ModelViewSet):
             return Perfil.objects.filter(user_id=user)
         return Perfil.objects.all()
     
-    @action(detail=False, methods=['post'])
-    def crear_perfil(self, request):
+    def create(self, request, *args, **kwargs):
+        """
+        Crear perfil con asignación automática de rol:
+        - Primer perfil de la empresa: jefe_seguridad
+        - Perfiles siguientes: guardia_seguridad
+        """
+        # Validar campos requeridos
         campos_requeridos = ['ci', 'nombre', 'apellido', 'email']
         for campo in campos_requeridos:
             if not request.data.get(campo):
@@ -391,24 +396,51 @@ class PerfilViewSet(viewsets.ModelViewSet):
                     {"error": f"El campo '{campo}' es requerido"}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
+        
+        # Generar contraseña temporal
         apellido = request.data.get('apellido')
         ci = request.data.get('ci')
         contraseña_temp = f"{iniciales(apellido)}.{ci}"
+        
+        # Preparar datos
         data = request.data.copy()
         data['contraseña'] = make_password(contraseña_temp)
         data['user_id'] = request.user.id
+        
+        # Asignación automática de rol
+        if 'rol' not in data or not data['rol']:
+            # Verificar si es el primer perfil de esta empresa
+            count_perfiles = Perfil.objects.filter(user_id=request.user).count()
+            if count_perfiles == 0:
+                data['rol'] = 'jefe_seguridad'
+            else:
+                data['rol'] = 'guardia_seguridad'
+        
+        # No asignar zona ni categoria en creación (null por defecto)
+        if 'zona' not in data:
+            data['zona'] = None
+        
         serializer = self.get_serializer(data=data)
         if serializer.is_valid():
             perfil = serializer.save()
             return Response(
                 {
                     "mensaje": "Perfil creado exitosamente",
-                    "contraseña_temporal": contraseña_temp,  # Para que el usuario la conozca
-                    "perfil": serializer.data
+                    "contraseña_temporal": contraseña_temp,
+                    "rol_asignado": perfil.rol,
+                    "perfil": PerfilSerializer(perfil).data
                 },
                 status=status.HTTP_201_CREATED
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=False, methods=['post'])
+    def crear_perfil(self, request):
+        """
+        Método legacy de creación de perfil.
+        Redirigir a create() estándar.
+        """
+        return self.create(request)
     
     @action(detail=True, methods=['patch'])
     def cambiar_contraseña(self, request, pk=None):
@@ -537,7 +569,7 @@ class PerfilViewSet(viewsets.ModelViewSet):
 class CategoriaViewSet(viewsets.ModelViewSet):
     queryset = Categoria.objects.all()
     serializer_class = CategoriaSerializer
-    permission_classes = [IsAdminUser]
+    permission_classes = [] 
     
     def perform_create(self, serializer):
         serializer.save()

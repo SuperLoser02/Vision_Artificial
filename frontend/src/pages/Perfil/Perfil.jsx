@@ -170,6 +170,11 @@ const Perfil = () => {
                                         {profile.ci && (
                                             <p className="text-sm text-gray-200">CI: {profile.ci}</p>
                                         )}
+                                        {profile.rol && (
+                                            <p className="text-xs text-white bg-white bg-opacity-20 px-2 py-1 rounded mt-1">
+                                                {profile.rol === 'jefe_seguridad' ? '👔 Jefe' : '🛡️ Guardia'}
+                                            </p>
+                                        )}
                                     </div>
                                 ))}
                             </div>

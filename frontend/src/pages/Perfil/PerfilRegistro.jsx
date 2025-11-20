@@ -256,6 +256,16 @@ const PerfilCRUD = () => {
                                     <p>
                                         <span className="font-semibold">Email:</span> {perfil.email}
                                     </p>
+                                    {perfil.rol && (
+                                        <p>
+                                            <span className="font-semibold">Rol:</span> {perfil.rol === 'jefe_seguridad' ? '👔 Jefe de Seguridad' : '🛡️ Guardia de Seguridad'}
+                                        </p>
+                                    )}
+                                    {perfil.zona_detalle && (
+                                        <p>
+                                            <span className="font-semibold">Zona:</span> {perfil.zona_detalle.nombre}
+                                        </p>
+                                    )}
                                     {perfil.telefono && (
                                         <p>
                                             <span className="font-semibold">Teléfono:</span> {perfil.telefono}
@@ -278,9 +288,15 @@ const PerfilCRUD = () => {
                                 <div className="mt-4 flex gap-2">
                                     <button
                                         onClick={() => handleVincularDispositivo(perfil)}
-                                        className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow hover:bg-blue-700 transition"
+                                        className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg shadow hover:bg-blue-700 transition"
                                     >
                                         Vincular dispositivo
+                                    </button>
+                                    <button
+                                        onClick={() => navigate(`/perfil-editar/${perfil.id}`)}
+                                        className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg shadow hover:bg-green-700 transition"
+                                    >
+                                        Editar Perfil
                                     </button>
                                 </div>
                             </div>
@@ -477,7 +493,9 @@ const PerfilCRUD = () => {
 
                                 <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
                                     <p className="text-sm text-yellow-700">
-                                        <span className="font-semibold">Nota:</span> Se generará automáticamente una contraseña temporal con el formato: <code className="bg-yellow-100 px-1 rounded">INICIALES.CI</code>
+                                        <span className="font-semibold">Asignación automática:</span> El primer perfil será <strong>Jefe de Seguridad</strong>. 
+                                        Los siguientes serán <strong>Guardias de Seguridad</strong>.<br/>
+                                        <span className="font-semibold mt-2 block">Contraseña temporal:</span> Se genera automáticamente con el formato: <code className="bg-yellow-100 px-1 rounded">INICIALES.CI</code>
                                     </p>
                                 </div>
 
