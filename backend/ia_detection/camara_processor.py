@@ -19,6 +19,10 @@ class CameraProcessor:
         self.camera_ip = camera_ip
         self.recorder = None
         
+        self.cooldown_active = False
+        self.cooldown_until = 0
+        self.cooldown_seconds = 60 # 1 minuto
+        
         # Construir stream URL
         if camera_type == "IP Webcam":
             self.stream_url = f"http://{camera_ip}:8080/video"
@@ -79,6 +83,12 @@ class CameraProcessor:
                 print("⚠️ Frame vacío o error de cámara, reintentando...")
                 time.sleep(0.05)
                 continue
+            
+            # ← NUEVO: Verificar si cooldown expiró
+            if self.cooldown_active and time.time() >= self.cooldown_until:
+                self.cooldown_active = False
+                print(f"✅ Cooldown terminado - Cámara {self.camera_id}")
+            
             try:
                 self.recorder.add_frame(frame)
             except Exception as e:
@@ -89,13 +99,16 @@ class CameraProcessor:
             # Esperar hasta tener suficientes frames
             if len(self.frame_buffer) < self.max_buffer_size:
                 continue
+            
             result = self._detect()
 
             # Protección para evitar crashes
             if not result or not isinstance(result, dict):
                 print("⚠️ _detect() devolvió None o formato inválido, saltando…")
                 continue
-            if result.get("is_alert", False):
+            
+            # ← MODIFICADO: Solo alertar si NO hay cooldown activo
+            if result.get("is_alert", False) and not self.cooldown_active:
 
                 # Websocket inmediatamente
                 self._notify_websocket(result)
@@ -111,6 +124,11 @@ class CameraProcessor:
                     )
                 except Exception as e:
                     print(f"⚠️ Error al activar grabación de alerta: {e}")
+
+                # ← NUEVO: Activar cooldown de 1 minuto
+                self.cooldown_active = True
+                self.cooldown_until = time.time() + self.cooldown_seconds
+                print(f"⏸️  Cooldown activado: 1 minuto - Cámara {self.camera_id}")
 
                 # Si usas celery → habilitar:
                 # process_alert_task.delay(detection_id)
