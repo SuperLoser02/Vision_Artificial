@@ -1,15 +1,10 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from .models import Notificacion, DispositivoFCM
-from .serializer import (
-    NotificacionSerializer, 
-    NotificacionCreateSerializer,
-    DispositivoFCMSerializer
-)
+from .serializer import NotificacionSerializer, DispositivoFCMSerializer
 from perfil.models import Perfil
 import logging
 
@@ -19,6 +14,7 @@ logger = logging.getLogger(__name__)
 class NotificacionViewSet(viewsets.ModelViewSet):
     """
     ViewSet para gestionar notificaciones.
+    SIN PERMISOS (proyecto académico).
     
     list: Obtener lista de notificaciones (con filtros)
     create: Crear nueva notificación (envía por WebSocket y FCM)
@@ -34,12 +30,6 @@ class NotificacionViewSet(viewsets.ModelViewSet):
     """
     queryset = Notificacion.objects.all()
     serializer_class = NotificacionSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_serializer_class(self):
-        if self.action == 'create':
-            return NotificacionCreateSerializer
-        return NotificacionSerializer
 
     def create(self, request, *args, **kwargs):
         """Crear notificación y enviarla por WebSocket y FCM"""
@@ -205,20 +195,22 @@ class NotificacionViewSet(viewsets.ModelViewSet):
         """
         SECURITY VISION: Envío inteligente de notificación por WebSocket.
         
-        Lógica simplificada:
-        1. Perfil específico (si existe)
-        2. Guardias de seguridad: filtrado por zona y severidad
-        3. Jefes de seguridad: siempre reciben todo (supervision_global)
+        NUEVA LÓGICA REFACTORIZADA:
+        1. Obtener zona_id desde camara_id si existe
+        2. Filtrar perfiles usando puede_recibir_alerta(zona_evento_id)
+           - Jefes de seguridad: SIEMPRE reciben (sin filtro)
+           - Guardias de seguridad: SOLO si perfil.zona_id == zona_evento_id
+        3. NO usar severidad, NO usar categorías
         
         Grupos WebSocket:
         - notificaciones_{perfil_id}: Individual
-        - rol_guardia_seguridad: Todos los guardias
-        - rol_jefe_seguridad: Todos los jefes
-        - zona_{zona}: Usuarios de una zona específica
-        - supervision_global: Jefes que supervisan todo
+        - supervision_global: Todos los jefes de seguridad
+        - zona_{zona_id}: Guardias de una zona específica
         """
         try:
             from perfil.models import Perfil
+            from camaras.models import CamaraDetalles
+            
             channel_layer = get_channel_layer()
             serializer = NotificacionSerializer(notificacion)
             grupos_enviados = []
@@ -235,18 +227,46 @@ class NotificacionViewSet(viewsets.ModelViewSet):
                 )
                 grupos_enviados.append(room_group_name)
             
-            # 2. Obtener zona y nivel de peligro
-            zona = notificacion.zona or ""
-            nivel_peligro = notificacion.nivel_peligro or "verde"
+            # 2. Obtener zona_id desde la cámara (si existe)
+            zona_evento_id = None
+            if notificacion.camara_id:
+                try:
+                    camara_detalle = CamaraDetalles.objects.get(id=notificacion.camara_id)
+                    if camara_detalle.zona:
+                        zona_evento_id = camara_detalle.zona.id
+                except CamaraDetalles.DoesNotExist:
+                    logger.warning(f"CamaraDetalles {notificacion.camara_id} no encontrada")
             
             # 3. Obtener perfiles activos que pueden recibir esta alerta
-            perfiles = Perfil.objects.filter(user_id__is_active=True)
+            perfiles = Perfil.objects.filter(user_id__is_active=True).select_related('zona')
             perfiles_destinatarios = [
                 p for p in perfiles 
-                if p.puede_recibir_alerta(nivel_peligro, zona)
+                if p.puede_recibir_alerta(zona_evento_id)
             ]
             
-            # 4. Enviar a grupos de rol únicos (evitar duplicados)
+            # 4. Enviar a todos los jefes de seguridad (supervisión global)
+            async_to_sync(channel_layer.group_send)(
+                'supervision_global',
+                {
+                    'type': 'nueva_notificacion',
+                    'notificacion': serializer.data
+                }
+            )
+            grupos_enviados.append('supervision_global')
+            
+            # 5. Enviar a grupo de zona específica si existe zona_evento_id
+            if zona_evento_id:
+                zone_group_name = f'zona_{zona_evento_id}'
+                async_to_sync(channel_layer.group_send)(
+                    zone_group_name,
+                    {
+                        'type': 'nueva_notificacion',
+                        'notificacion': serializer.data
+                    }
+                )
+                grupos_enviados.append(zone_group_name)
+            
+            # 6. Enviar a grupos de rol únicos (evitar duplicados)
             roles_enviados = set()
             for perfil in perfiles_destinatarios:
                 rol = perfil.rol
@@ -262,43 +282,9 @@ class NotificacionViewSet(viewsets.ModelViewSet):
                     grupos_enviados.append(group_name)
                     roles_enviados.add(rol)
             
-            # 5. Enviar a grupo de zona si la alerta tiene zona específica
-            if zona:
-                zona_normalizada = zona.replace(" ", "_").lower()
-                zone_group_name = f'zona_{zona_normalizada}'
-                async_to_sync(channel_layer.group_send)(
-                    zone_group_name,
-                    {
-                        'type': 'nueva_notificacion',
-                        'notificacion': serializer.data
-                    }
-                )
-                grupos_enviados.append(zone_group_name)
-            
-            # 6. SIEMPRE enviar a jefes de seguridad (supervisión global)
-            async_to_sync(channel_layer.group_send)(
-                'supervision_global',
-                {
-                    'type': 'nueva_notificacion',
-                    'notificacion': serializer.data
-                }
-            )
-            grupos_enviados.append('supervision_global')
-            
-            # 7. También enviar a grupo de rol de jefes (por si no están en supervision_global)
-            if 'rol_jefe_seguridad' not in roles_enviados:
-                async_to_sync(channel_layer.group_send)(
-                    'rol_jefe_seguridad',
-                    {
-                        'type': 'nueva_notificacion',
-                        'notificacion': serializer.data
-                    }
-                )
-                grupos_enviados.append('rol_jefe_seguridad')
-            
             logger.info(
                 f"📡 [Security Vision] Notificación {notificacion.id} enviada a {len(grupos_enviados)} grupos: "
-                f"{', '.join(grupos_enviados)}"
+                f"{', '.join(grupos_enviados)} | Zona: {zona_evento_id} | Destinatarios: {len(perfiles_destinatarios)}"
             )
         
         except Exception as e:
@@ -336,6 +322,7 @@ class NotificacionViewSet(viewsets.ModelViewSet):
 class DispositivoFCMViewSet(viewsets.ModelViewSet):
     """
     ViewSet para gestionar tokens FCM de dispositivos móviles.
+    SIN PERMISOS (proyecto académico).
     
     list: Listar dispositivos registrados
     create: Registrar nuevo dispositivo
@@ -344,7 +331,6 @@ class DispositivoFCMViewSet(viewsets.ModelViewSet):
     """
     queryset = DispositivoFCM.objects.all()
     serializer_class = DispositivoFCMSerializer
-    permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
         """Filtrar por perfil si se proporciona"""

@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { logout, obtenerEstadoCamara } from "../../services/Api";
+import { logout, obtenerEstadoCamara, obtenerZonas, actualizarCamaraDetalle } from "../../services/Api";
 import api from "../../services/Api";
 
 const Dashboard = () => {
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [camaras, setCamaras] = useState([]);
+    const [zonas, setZonas] = useState([]);
     const [showModal, setShowModal] = useState(false);
     const [formData, setFormData] = useState({
         ip: '',
         puerto: '8080',
-        protocolo: 'http',
+        protocolo: 'https',
         zona: ''
     });
     const [loading, setLoading] = useState(false);
@@ -19,17 +20,24 @@ const Dashboard = () => {
     const [estados, setEstados] = useState({});
     const [fullscreenImg, setFullscreenImg] = useState(null);
     const navigate = useNavigate();
-    // Cargar cámaras del perfil al montar y actualizar estado cada 5 segundos
+    // Cargar cámaras del usuario y zonas al montar
     useEffect(() => {
         let intervalId;
-        const fetchCamaras = async () => {
+        const fetchData = async () => {
             setLoading(true);
             try {
-                const res = await api.get('camaras/por_perfil/');
-                setCamaras(res.data);
+                // Cargar cámaras y zonas
+                const [camarasRes, zonasRes] = await Promise.all([
+                    api.get('camaras/'),
+                    obtenerZonas()
+                ]);
+                
+                setCamaras(camarasRes.data);
+                setZonas(zonasRes);
+                
                 // Consultar estado de cada cámara
                 const estadosTemp = {};
-                for (const cam of res.data) {
+                for (const cam of camarasRes.data) {
                     if (cam.detalles && cam.detalles.length > 0) {
                         const detalle = cam.detalles[0];
                         const estado = await obtenerEstadoCamara(detalle.id);
@@ -38,15 +46,17 @@ const Dashboard = () => {
                 }
                 setEstados(estadosTemp);
             } catch (error) {
-                
+                console.error('Error al cargar datos:', error);
                 setCamaras([]);
             } finally {
                 setLoading(false);
             }
         };
-        fetchCamaras();
+        
+        fetchData();
+        
+        // Actualizar estado cada 5 segundos
         intervalId = setInterval(async () => {
-            // Solo actualizar estado, no recargar cámaras
             const estadosTemp = {};
             for (const cam of camaras) {
                 if (cam.detalles && cam.detalles.length > 0) {
@@ -57,6 +67,7 @@ const Dashboard = () => {
             }
             setEstados(estadosTemp);
         }, 5000);
+        
         return () => clearInterval(intervalId);
     }, [camaras.length]);
 
@@ -81,13 +92,17 @@ const Dashboard = () => {
         navigate('/notificaciones');
     };
 
+    const handleIrAZonas = () => {
+        navigate('/zonas');
+    };
+
     // Función para detectar cámaras automáticamente
     const detectarCamaras = async () => {
         setLoading(true);
         try {
             const res = await api.get('detectar/');
             // El backend devuelve solo las nuevas detectadas, refrescamos la lista completa
-            const resPerfil = await api.get('camaras/por_perfil/');
+            const resPerfil = await api.get('camaras/');
             setCamaras(resPerfil.data);
             alert(`Se detectaron ${res.data.length} cámara(s)`);
             // Consultar estado de cada cámara
@@ -113,18 +128,19 @@ const Dashboard = () => {
         setLoading(true);
         try {
             const res = await api.post('registrar/', formData);
-            if (res.data && res.data.camara) {
-                alert("Cámara registrada exitosamente");
+            if (res.data && res.data.success) {
+                alert(res.data.message || "Cámara registrada exitosamente");
                 // Refrescar lista
-                const resPerfil = await api.get('camaras/por_perfil/');
+                const resPerfil = await api.get('camaras/');
                 setCamaras(resPerfil.data);
                 setShowModal(false);
-                setFormData({ ip: '', puerto: '8080', protocolo: 'http', zona: '' });
+                setFormData({ ip: '', puerto: '8080', protocolo: 'https', zona: '' });
             } else {
                 alert(`Error: ${res.data.error || 'No se pudo registrar la cámara'}`);
             }
         } catch (error) {
-            alert("Error al registrar la cámara.");
+            const errorMsg = error.response?.data?.error || "Error al registrar la cámara. Verifica que la cámara esté encendida y accesible.";
+            alert(errorMsg);
         } finally {
             setLoading(false);
         }
@@ -134,7 +150,7 @@ const Dashboard = () => {
         setEditId(detalle.id);
         setEditData({
             n_camara: detalle.n_camara,
-            zona: detalle.zona,
+            zona: detalle.zona || '',  // ID de la zona (puede ser null)
             ip: detalle.ip,
             marca: detalle.marca,
             resolucion: detalle.resolucion
@@ -151,9 +167,9 @@ const Dashboard = () => {
     const handleEditSave = async () => {
         setLoading(true);
         try {
-            await api.patch(`camara-detalles/${editId}/`, editData);
+            await actualizarCamaraDetalle(editId, editData);
             // Refrescar lista
-            const resPerfil = await api.get('camaras/por_perfil/');
+            const resPerfil = await api.get('camaras/');
             setCamaras(resPerfil.data);
             setEditId(null);
         } catch (error) {
@@ -198,6 +214,14 @@ const Dashboard = () => {
                     >
                         <span className="text-2xl">📋</span>
                         {sidebarOpen && <span className="font-medium">Categorías</span>}
+                    </li>
+                    <li
+                        onClick={handleIrAZonas}
+                        className="p-4 hover:bg-blue-700 cursor-pointer flex items-center gap-3 transition-colors duration-200"
+                        title="Zonas"
+                    >
+                        <span className="text-2xl">🏢</span>
+                        {sidebarOpen && <span className="font-medium">Zonas</span>}
                     </li>
                     <li
                         onClick={handleIrANotificaciones}
@@ -264,7 +288,7 @@ const Dashboard = () => {
                                     {detalle ? (
                                         <>
                                             <p className="text-gray-600">IP: {detalle.ip}</p>
-                                            <p className="text-gray-600">Zona: {detalle.zona}</p>
+                                            <p className="text-gray-600">Zona: {detalle.zona_detalle?.nombre || 'Sin asignar'}</p>
                                             <p className="text-gray-600">Marca: {detalle.marca}</p>
                                             <p className="text-gray-600">Resolución: {detalle.resolucion}</p>
                                             <p className={`font-bold ${estado?.estado === 'ok' ? 'text-green-600' : 'text-red-600'}`}>Estado: {estado?.estado === 'ok' ? 'Conectada' : 'Sin señal'}</p>
@@ -278,15 +302,15 @@ const Dashboard = () => {
                                                     <span role="img" aria-label="error">📷❌</span>
                                                 </div>
                                             )}
-                {/* Modal para imagen en pantalla completa */}
-                {fullscreenImg && (
-                    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50" onClick={() => setFullscreenImg(null)}>
-                        <img src={fullscreenImg} alt="Vista completa" className="max-w-full max-h-full object-contain shadow-2xl" />
-                        <button className="absolute top-6 right-8 text-white text-3xl font-bold bg-black bg-opacity-50 rounded-full px-4 py-2" onClick={() => setFullscreenImg(null)}>
-                            &times;
-                        </button>
-                    </div>
-                )}
+                                                {/* Modal para imagen en pantalla completa */}
+                                                {fullscreenImg && (
+                                                    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50" onClick={() => setFullscreenImg(null)}>
+                                                        <img src={fullscreenImg} alt="Vista completa" className="max-w-full max-h-full object-contain shadow-2xl" />
+                                                        <button className="absolute top-6 right-8 text-white text-3xl font-bold bg-black bg-opacity-50 rounded-full px-4 py-2" onClick={() => setFullscreenImg(null)}>
+                                                            &times;
+                                                        </button>
+                                                    </div>
+                                                )}
                                             <button
                                                 className="mt-2 px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600"
                                                 onClick={() => handleEditClick(detalle)}
@@ -322,7 +346,17 @@ const Dashboard = () => {
                                 </div>
                                 <div className="mb-4">
                                     <label className="block text-gray-700 mb-2">Zona</label>
-                                    <input type="text" name="zona" value={editData.zona} onChange={handleEditChange} className="w-full px-3 py-2 border rounded" />
+                                    <select 
+                                        name="zona" 
+                                        value={editData.zona} 
+                                        onChange={handleEditChange} 
+                                        className="w-full px-3 py-2 border rounded"
+                                    >
+                                        <option value="">Sin zona</option>
+                                        {zonas.map(z => (
+                                            <option key={z.id} value={z.id}>{z.nombre}</option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div className="mb-4">
                                     <label className="block text-gray-700 mb-2">IP</label>
@@ -386,15 +420,18 @@ const Dashboard = () => {
                                     </select>
                                 </div>
                                 <div className="mb-4">
-                                    <label className="block text-gray-700 mb-2">Zona/Ubicación</label>
-                                    <input
-                                        type="text"
+                                    <label className="block text-gray-700 mb-2">Zona (opcional)</label>
+                                    <select
                                         name="zona"
                                         value={formData.zona}
                                         onChange={handleInputChange}
-                                        placeholder="Entrada principal"
                                         className="w-full px-3 py-2 border rounded"
-                                    />
+                                    >
+                                        <option value="">Sin zona</option>
+                                        {zonas.map(z => (
+                                            <option key={z.id} value={z.id}>{z.nombre}</option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div className="flex gap-2">
                                     <button

@@ -9,7 +9,6 @@ import requests
 import socket
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from .models import Camara, CamaraDetalles
-from perfil.models import Perfil
 from .serializer import CamaraSerializer, CamaraDetallesSerializer
 
 # Endpoint para verificar el estado de la señal de una cámara
@@ -49,14 +48,10 @@ class CamaraViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def por_perfil(self, request):
-        """Devuelve todas las cámaras asociadas al perfil/empresa actual"""
-        perfil = None
-        if request.user.is_authenticated:
-            from perfil.models import Perfil
-            perfil = Perfil.objects.filter(user_id=request.user).first()
-        if not perfil:
-            return Response({"error": "Perfil no encontrado para el usuario."}, status=400)
-        camaras = Camara.objects.filter(perfil=perfil)
+        """Devuelve todas las cámaras asociadas al usuario/empresa actual"""
+        if not request.user.is_authenticated:
+            return Response({"error": "Usuario no autenticado."}, status=401)
+        camaras = Camara.objects.filter(user=request.user)
         serializer = self.get_serializer(camaras, many=True)
         return Response(serializer.data)
 
@@ -68,22 +63,30 @@ class RegistrarCamaraManualAPIView(APIView):
     def post(self, request):
         ip = request.data.get('ip')
         puerto = request.data.get('puerto', 8080)
-        protocolo = request.data.get('protocolo', 'http')
-        usuario = request.data.get('usuario', '')
-        password = request.data.get('password', '')
-        zona = request.data.get('zona', 'No especificada')
+        protocolo = request.data.get('protocolo', 'https')
+        zona_id = request.data.get('zona', None)  # ID de zona o None
         
         if not ip:
             return Response(
                 {"error": "La IP es requerida"}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
+        
+        # Validar zona si se proporciona
+        zona_obj = None
+        if zona_id:
+            from zonas.models import Zona
+            try:
+                zona_obj = Zona.objects.get(id=zona_id)
+            except Zona.DoesNotExist:
+                return Response(
+                    {"error": "La zona especificada no existe"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
         try:
             url = f"{protocolo}://{ip}:{puerto}/status.json"
-            if usuario and password:
-                r = requests.get(url, auth=(usuario, password), timeout=2, verify=False)
-            else:
-                r = requests.get(url, timeout=2, verify=False)
+            r = requests.get(url, timeout=2, verify=False)
             
             if r.status_code == 200:
                 info = r.json()
@@ -96,7 +99,7 @@ class RegistrarCamaraManualAPIView(APIView):
                 detalles = CamaraDetalles.objects.create(
                     camara=camara,
                     n_camara=1,
-                    zona=zona,
+                    zona=zona_obj,  # FK a Zona o None
                     ip=ip,
                     marca="IP Webcam",
                     resolucion=str(info.get("video_size", {}).get("width", "Desconocida"))
@@ -109,6 +112,7 @@ class RegistrarCamaraManualAPIView(APIView):
                         "ip": detalles.ip,
                         "marca": detalles.marca,
                         "resolucion": detalles.resolucion,
+                        "zona": zona_obj.nombre if zona_obj else None,
                         "stream_url": f"{protocolo}://{ip}:{puerto}/video"
                     }
                 }, status=status.HTTP_201_CREATED)
@@ -171,12 +175,10 @@ class DetectarCamarasAPIView(APIView):
     
     def get(self, request):
         camaras_detectadas = []
-        # Obtener el perfil del usuario actual
-        perfil = None
-        if request.user.is_authenticated:
-            perfil = Perfil.objects.filter(user_id=request.user).first()
-        if not perfil:
-            return Response({"error": "Perfil no encontrado para el usuario."}, status=400)
+        
+        # Validar usuario autenticado
+        if not request.user.is_authenticated:
+            return Response({"error": "Usuario no autenticado."}, status=401)
 
         test_ip = request.query_params.get('ip', None)
         if test_ip:
@@ -193,22 +195,21 @@ class DetectarCamarasAPIView(APIView):
             for future in as_completed(future_to_ip):
                 result = future.result()
                 if result['found']:
-                    # Evitar duplicados: buscar si ya existe una cámara con ese IP y perfil
-                    if CamaraDetalles.objects.filter(ip=result['ip'], camara__perfil=perfil).exists():
+                    # Evitar duplicados: buscar si ya existe una cámara con ese IP y user
+                    if CamaraDetalles.objects.filter(ip=result['ip'], camara__user=request.user).exists():
                         continue
                     camara = Camara.objects.create(
                         cantidad=1,
                         lugar=f"Detectada en {result['ip']}",
                         cant_zonas=1,
-                        user=request.user if request.user.is_authenticated else None,
-                        perfil=perfil
+                        user=request.user
                     )
                     if result['type'] == 'IP Webcam':
                         info = result.get('info', {})
                         detalles = CamaraDetalles.objects.create(
                             camara=camara,
                             n_camara=1,
-                            zona="Desconocida",
+                            zona=None,  # Sin zona, debe asignarse manualmente
                             ip=result['ip'],
                             marca="IP Webcam",
                             resolucion=str(info.get("video_size", {}).get("width", "Desconocida"))
@@ -218,13 +219,13 @@ class DetectarCamarasAPIView(APIView):
                             "ip": detalles.ip,
                             "marca": detalles.marca,
                             "resolucion": detalles.resolucion,
-                            "stream_url": f"http://{result['ip']}:8080/video"
+                            "stream_url": f"https://{result['ip']}:8080/video"
                         })
                     elif result['type'] == 'RTSP':
                         detalles = CamaraDetalles.objects.create(
                             camara=camara,
                             n_camara=1,
-                            zona="Desconocida",
+                            zona=None,  # Sin zona, debe asignarse manualmente
                             ip=result['ip'],
                             marca="RTSP Camera",
                             resolucion="Desconocida"

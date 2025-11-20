@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'camaras',
     'notificaciones',
     'ia_detection',
+    'zonas',
 ]
 
 MIDDLEWARE = [
@@ -176,6 +177,40 @@ AUTH_PASSWORD_VALIDATORS = [
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
 LANGUAGE_CODE = 'es'
+
+TIME_ZONE = 'America/La_Paz'
+
+USE_I18N = True
+
+USE_TZ = True
+
+CELERY_BROKER_URL = "redis://redis:6379/0"
+
+CELERY_RESULT_BACKEND = "redis://redis:6379/0"
+
+# Opcional pero recomendado
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = "America/La_Paz"
+CELERY_ENABLE_UTC = False
+
+# Static files (CSS, JavaScript, Images)
+# https://docs.djangoproject.com/en/5.2/howto/static-files/
+
+STATIC_URL = 'static/'
+
+# Default primary key field type
+# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_URL = '/media/'
+
+ML_MODEL_DIR = BASE_DIR / 'ml_models'
+DETECTION_MODEL_PATH = ML_MODEL_DIR / 'best_model.pth'
 
 TIME_ZONE = 'America/La_Paz'
 
