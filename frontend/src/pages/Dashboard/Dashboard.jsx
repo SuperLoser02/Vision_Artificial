@@ -38,6 +38,7 @@ const Dashboard = () => {
                 }
                 setEstados(estadosTemp);
             } catch (error) {
+                
                 setCamaras([]);
             } finally {
                 setLoading(false);

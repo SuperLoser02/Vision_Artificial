@@ -7,24 +7,28 @@ from rest_framework import viewsets
 from camaras.models import CamaraDetalles
 
 class ia_detection(viewsets.ModelViewSet):
-    @action(detail=True, methods=['post'])
+    @action(detail=False, methods=['Get'])
     def start_detection(self, request, pk=None):
         """Inicia detección en una cámara"""
         user = self.request.user
-        camaras_de_la_empresa = CamaraDetalles.objects.get(camara__user=user)
+        camaras_de_la_empresa = CamaraDetalles.objects.all()
         for camara in camaras_de_la_empresa:
+            print(camara,id, camara.marca, camara.ip)
             camera_manager.start_camera(
                 camera_id=camara.id,
-                camera_type=camara.tipo,
+                camera_type=camara.marca,
                 camera_ip=camara.ip
             )
         return Response({'status': 'started'})
     
-    @action(detail=True, methods=['post'])
-    def stop_detection(self, request, pk=None):
+    @action(detail=True, methods=['get'])
+    def stop_detection(self, request):
         """Detiene detección en una cámara"""
-        camera_id = request.camara_id
-        camera_manager.stop_camera(camera_id)
+        user = self.request.user
+        camaras_de_la_empresa = CamaraDetalles.objects.all()
+        for camara in camaras_de_la_empresa:
+            camera_id = camara.id
+            camera_manager.stop_camera(camera_id)
         
         return Response({'status': 'stopped'})
     

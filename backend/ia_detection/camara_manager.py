@@ -16,10 +16,15 @@ class CameraManager:
         """
         if camera_id in self.processors:
             return  # Ya está corriendo
-        
+        print(f"Iniciando camara {camera_id} de tipo {camera_type} con la ip: {camera_ip}")
         processor = CameraProcessor(camera_id, camera_type, camera_ip)
-        processor.start()  # ← Thread infinito
-        self.processors[camera_id] = processor
+        print(f"Se inicailizo la camara com CameraProcessor")
+        try:
+            processor.start()  # ← puede fallar
+            self.processors[camera_id] = processor
+        except Exception as e:
+            print(f"❌ Error iniciando cámara {camera_id}: {e}")
+            print("⏭ Saltando a la siguiente cámara…")
     
     def stop_camera(self, camera_id):
         """Detiene una cámara específica"""
