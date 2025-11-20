@@ -310,28 +310,22 @@ const Notificaciones = () => {
   };
 
   return (
-    <div className="min-h-screen w-screen bg-gradient-to-r from-blue-500 to-purple-600 p-6">
+    <div className="w-full min-h-full">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-4xl font-bold text-white">Notificaciones</h1>
-            <p className="text-white text-opacity-80 mt-2">
+            <h1 className="text-4xl font-bold text-gray-800">Notificaciones</h1>
+            <p className="text-gray-600 mt-2">
               Historial y gestión de alertas y mensajes de seguridad
             </p>
           </div>
           <div className="flex gap-3">
             <button
               onClick={() => setShowForm(!showForm)}
-              className="bg-white text-blue-600 font-semibold py-3 px-6 rounded-lg shadow-lg hover:bg-gray-100 transition-all duration-300"
+              className="bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:bg-blue-700 transition-all duration-300"
             >
               {showForm ? "Cancelar" : "+ Nueva Notificación"}
-            </button>
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="bg-gray-500 bg-opacity-50 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:bg-opacity-70 transition-all duration-300"
-            >
-              Volver
             </button>
           </div>
         </div>
@@ -490,14 +484,14 @@ const Notificaciones = () => {
 
         {/* Lista de notificaciones */}
         {loading && (!Array.isArray(notificaciones) || notificaciones.length === 0) ? (
-          <div className="text-white text-center text-2xl py-20">
+          <div className="text-gray-600 text-center text-2xl py-20">
             Cargando notificaciones...
           </div>
         ) : !Array.isArray(notificaciones) || notificaciones.length === 0 ? (
-          <div className="bg-white bg-opacity-10 backdrop-blur-md rounded-lg p-12 text-center text-white">
+          <div className="bg-gray-100 rounded-lg p-12 text-center">
             <div className="text-6xl mb-4">🔔</div>
-            <h2 className="text-2xl font-bold mb-4">No hay notificaciones registradas</h2>
-            <p className="mb-6">Aún no se han generado alertas o mensajes de seguridad</p>
+            <h2 className="text-2xl font-bold mb-4 text-gray-800">No hay notificaciones registradas</h2>
+            <p className="mb-6 text-gray-600">Aún no se han generado alertas o mensajes de seguridad</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -61,8 +61,9 @@ const Perfil = () => {
             // El backend espera el ID del perfil y la contraseña
             const response = await iniciarSesionPerfil(selectedProfile.id, enteredPassword);
             
-            // Guardar token del perfil
-            localStorage.setItem('perfilToken', response.token);
+            // Guardar ambos tokens: el token DRF y el session_token
+            localStorage.setItem('authToken', response.token); // Token DRF para autenticación API
+            localStorage.setItem('perfilToken', response.session_token); // Token de sesión personalizado
             localStorage.setItem('perfilActual', JSON.stringify(selectedProfile));
             
             alert(`¡Bienvenido, ${selectedProfile.nombre} ${selectedProfile.apellido}!`);

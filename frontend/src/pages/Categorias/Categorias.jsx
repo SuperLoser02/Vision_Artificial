@@ -171,28 +171,22 @@ const Categorias = () => {
     };
 
     return (
-        <div className="min-h-screen w-screen bg-gradient-to-r from-blue-500 to-purple-600 p-6">
+        <div className="w-full min-h-full">
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
                 <div className="flex justify-between items-center mb-8">
                     <div>
-                        <h1 className="text-4xl font-bold text-white">Gestión de Categorías</h1>
-                        <p className="text-white text-opacity-80 mt-2">
+                        <h1 className="text-4xl font-bold text-gray-800">Gestión de Categorías</h1>
+                        <p className="text-gray-600 mt-2">
                             Administra las categorías de trabajo y turnos
                         </p>
                     </div>
                     <div className="flex gap-3">
                         <button
                             onClick={handleAbrirModalCrear}
-                            className="bg-white text-blue-600 font-semibold py-3 px-6 rounded-lg shadow-lg hover:bg-gray-100 transition-all duration-300"
+                            className="bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:bg-blue-700 transition-all duration-300"
                         >
                             + Nueva Categoría
-                        </button>
-                        <button
-                            onClick={() => navigate('/dashboard')}
-                            className="bg-gray-500 bg-opacity-50 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:bg-opacity-70 transition-all duration-300"
-                        >
-                            Volver
                         </button>
                     </div>
                 </div>
@@ -206,17 +200,17 @@ const Categorias = () => {
 
                 {/* Lista de categorías */}
                 {loading && categorias.length === 0 ? (
-                    <div className="text-white text-center text-2xl py-20">
+                    <div className="text-gray-600 text-center text-2xl py-20">
                         Cargando categorías...
                     </div>
                 ) : categorias.length === 0 ? (
-                    <div className="bg-white bg-opacity-10 backdrop-blur-md rounded-lg p-12 text-center text-white">
+                    <div className="bg-gray-100 rounded-lg p-12 text-center">
                         <div className="text-6xl mb-4">📋</div>
-                        <h2 className="text-2xl font-bold mb-4">No hay categorías registradas</h2>
-                        <p className="mb-6">Crea la primera categoría para organizar los turnos de trabajo</p>
+                        <h2 className="text-2xl font-bold mb-4 text-gray-800">No hay categorías registradas</h2>
+                        <p className="mb-6 text-gray-600">Crea la primera categoría para organizar los turnos de trabajo</p>
                         <button
                             onClick={handleAbrirModalCrear}
-                            className="bg-white text-blue-600 font-semibold py-3 px-6 rounded-lg shadow-lg hover:bg-gray-100"
+                            className="bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:bg-blue-700"
                         >
                             + Crear Primera Categoría
                         </button>

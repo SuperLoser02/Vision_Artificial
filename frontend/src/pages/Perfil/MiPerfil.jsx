@@ -24,7 +24,7 @@ const MiPerfil = () => {
         try {
             setLoading(true);
             const token = localStorage.getItem('perfilToken');
-            
+
             if (!token) {
                 alert('No hay sesión activa. Por favor inicia sesión.');
                 navigate('/perfil');
@@ -37,7 +37,7 @@ const MiPerfil = () => {
         } catch (err) {
             console.error('Error al cargar perfil:', err);
             setError(err.detail || err.error || 'Error al cargar los datos del perfil');
-            
+
             if (err.status === 401 || err.status === 404) {
                 alert('Sesión expirada o inválida. Por favor inicia sesión nuevamente.');
                 localStorage.removeItem('perfilToken');
@@ -81,7 +81,7 @@ const MiPerfil = () => {
         try {
             setLoading(true);
             const token = localStorage.getItem('perfilToken');
-            
+
             await cambiarContraseñaPerfil(perfil.id, {
                 token,
                 contraseña_actual: passwordData.contraseña_actual,
@@ -95,7 +95,7 @@ const MiPerfil = () => {
                 contraseña_nueva: "",
                 confirmar_contraseña: ""
             });
-            
+
             setTimeout(() => {
                 setShowPasswordModal(false);
                 setSuccessMessage("");
@@ -115,14 +115,14 @@ const MiPerfil = () => {
 
         try {
             const token = localStorage.getItem('perfilToken');
-            
+
             if (token) {
                 await cerrarSesionPerfil(token);
             }
-            
+
             localStorage.removeItem('perfilToken');
             localStorage.removeItem('perfilActual');
-            
+
             alert('Sesión cerrada exitosamente');
             navigate('/perfil');
         } catch (err) {
@@ -156,15 +156,15 @@ const MiPerfil = () => {
 
     if (loading && !perfil) {
         return (
-            <div className="min-h-screen w-screen bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                <div className="text-white text-2xl">Cargando perfil...</div>
+            <div className="w-full min-h-[400px] flex items-center justify-center">
+                <div className="text-gray-600 text-2xl">Cargando perfil...</div>
             </div>
         );
     }
 
     if (error && !perfil) {
         return (
-            <div className="min-h-screen w-screen bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center p-4">
+            <div className="w-full min-h-[400px] flex items-center justify-center p-4">
                 <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
                     <p className="text-red-600 text-xl mb-4">{error}</p>
                     <button
@@ -185,17 +185,11 @@ const MiPerfil = () => {
     }
 
     return (
-        <div className="min-h-screen w-screen bg-gradient-to-r from-blue-500 to-purple-600 p-6">
+        <div className="w-full min-h-full">
             <div className="max-w-4xl mx-auto">
                 {/* Header */}
-                <div className="flex justify-between items-center mb-8">
-                    <h1 className="text-4xl font-bold text-white">Mi Perfil</h1>
-                    <button
-                        onClick={() => navigate('/dashboard')}
-                        className="bg-white bg-opacity-20 text-white font-semibold py-2 px-6 rounded-lg hover:bg-opacity-30 transition-all duration-300"
-                    >
-                        Volver al Dashboard
-                    </button>
+                <div className="mb-8">
+                    <h1 className="text-4xl font-bold text-gray-800">Mi Perfil</h1>
                 </div>
 
                 {/* Tarjeta de Perfil */}
@@ -223,8 +217,13 @@ const MiPerfil = () => {
                     {/* Información del perfil */}
                     <div className="p-8">
                         <h3 className="text-2xl font-bold text-gray-800 mb-6">Información Personal</h3>
-                        
+
                         <div className="grid md:grid-cols-2 gap-6">
+                            <div className="bg-gray-50 p-4 rounded-lg">
+                                <p className="text-sm text-gray-500 mb-1">Cédula de Identidad</p>
+                                <p className="text-lg text-gray-800 font-medium">{perfil?.ci}</p>
+                            </div>
+
                             <div className="bg-gray-50 p-4 rounded-lg">
                                 <p className="text-sm text-gray-500 mb-1">Correo Electrónico</p>
                                 <p className="text-lg text-gray-800 font-medium">{perfil?.email || 'No especificado'}</p>
@@ -238,15 +237,29 @@ const MiPerfil = () => {
                             <div className="bg-gray-50 p-4 rounded-lg">
                                 <p className="text-sm text-gray-500 mb-1">Fecha de Nacimiento</p>
                                 <p className="text-lg text-gray-800 font-medium">
-                                    {perfil?.fecha_nacimiento 
+                                    {perfil?.fecha_nacimiento
                                         ? new Date(perfil.fecha_nacimiento).toLocaleDateString()
                                         : 'No especificado'}
                                 </p>
                             </div>
 
-                            <div className="bg-gray-50 p-4 rounded-lg">
-                                <p className="text-sm text-gray-500 mb-1">Cédula de Identidad</p>
-                                <p className="text-lg text-gray-800 font-medium">{perfil?.ci}</p>
+                            <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
+                                <p className="text-sm text-blue-600 mb-1 font-semibold">Rol</p>
+                                <p className="text-lg text-gray-800 font-medium">
+                                    {perfil?.rol === 'guardia_seguridad' ? 'Guardia de Seguridad' :
+                                        perfil?.rol === 'jefe_seguridad' ? 'Jefe de Seguridad' :
+                                            'No especificado'}
+                                </p>
+                            </div>
+
+                            <div className="bg-purple-50 p-4 rounded-lg border-l-4 border-purple-500">
+                                <p className="text-sm text-purple-600 mb-1 font-semibold">Nivel de Alertas</p>
+                                <p className="text-lg text-gray-800 font-medium">
+                                    {perfil?.nivel_severidad_minimo === 'rojo' ? '🔴 Solo Críticas' :
+                                        perfil?.nivel_severidad_minimo === 'amarillo' ? '🟡 Medias y Críticas' :
+                                            perfil?.nivel_severidad_minimo === 'verde' ? '🟢 Todas las Alertas' :
+                                                'No especificado'}
+                                </p>
                             </div>
                         </div>
 
@@ -254,6 +267,22 @@ const MiPerfil = () => {
                             <div className="mt-6 bg-gray-50 p-4 rounded-lg">
                                 <p className="text-sm text-gray-500 mb-1">Dirección</p>
                                 <p className="text-lg text-gray-800 font-medium">{perfil.direccion}</p>
+                            </div>
+                        )}
+
+                        {perfil?.zonas_asignadas && perfil.zonas_asignadas.length > 0 && (
+                            <div className="mt-6 bg-green-50 p-4 rounded-lg border-l-4 border-green-500">
+                                <p className="text-sm text-green-600 mb-2 font-semibold">Zonas Asignadas</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {perfil.zonas_asignadas.map((zona, index) => (
+                                        <span
+                                            key={index}
+                                            className="bg-green-200 text-green-800 px-3 py-1 rounded-full text-sm font-medium"
+                                        >
+                                            {zona}
+                                        </span>
+                                    ))}
+                                </div>
                             </div>
                         )}
 
@@ -287,7 +316,7 @@ const MiPerfil = () => {
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                         <div className="bg-white rounded-lg p-8 w-full max-w-md max-h-[90vh] overflow-y-auto">
                             <h2 className="text-2xl font-bold mb-6 text-gray-800">Cambiar Contraseña</h2>
-                            
+
                             {passwordError && (
                                 <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
                                     {passwordError}
