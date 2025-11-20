@@ -17,7 +17,7 @@ const Login = () => {
         try {
             const response = await loginAdmin(username, password);
             console.log('Login exitoso:', response);
-            alert(`¡Bienvenido, ${response.user.username}!`);
+            // Redirigir a selección de perfil después del login exitoso
             navigate('/perfil');
         } catch (err) {
             console.error('Error en login:', err);

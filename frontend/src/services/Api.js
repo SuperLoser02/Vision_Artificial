@@ -246,16 +246,45 @@ export const obtenerPerfiles = async () => {
 };
 
 /**
- * Crear un nuevo perfil (guardia)
+ * Crear un nuevo perfil (guardia o jefe según sea el primero)
  * @param {Object} perfilData 
  * @returns {Promise}
  */
 export const crearPerfil = async (perfilData) => {
     try {
-        const response = await api.post('perfiles/crear_perfil/', perfilData);
+        const response = await api.post('perfiles/', perfilData);
         return response.data;
     } catch (error) {
         throw error.response?.data || { error: 'Error al crear perfil' };
+    }
+};
+
+/**
+ * Actualizar perfil existente (editar rol, zona, categoria)
+ * @param {number} perfilId
+ * @param {Object} perfilData
+ * @returns {Promise}
+ */
+export const actualizarPerfil = async (perfilId, perfilData) => {
+    try {
+        const response = await api.patch(`perfiles/${perfilId}/`, perfilData);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || { error: 'Error al actualizar perfil' };
+    }
+};
+
+/**
+ * Obtener un perfil específico por ID
+ * @param {number} perfilId
+ * @returns {Promise}
+ */
+export const obtenerPerfilPorId = async (perfilId) => {
+    try {
+        const response = await api.get(`perfiles/${perfilId}/`);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || { error: 'Error al obtener perfil' };
     }
 };
 
@@ -331,7 +360,7 @@ export const cambiarContraseñaPerfil = async (perfilId, passwordData) => {
 // ============================================
 
 /**
- * Obtener todas las cámaras
+ * Obtener todas las cámaras de la empresa actual
  * @returns {Promise}
  */
 export const obtenerCamaras = async () => {
@@ -340,6 +369,34 @@ export const obtenerCamaras = async () => {
         return response.data;
     } catch (error) {
         throw error.response?.data || { error: 'Error al obtener cámaras' };
+    }
+};
+
+/**
+ * Obtener detalles de todas las cámaras
+ * @returns {Promise}
+ */
+export const obtenerCamaraDetalles = async () => {
+    try {
+        const response = await api.get('camara-detalles/');
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || { error: 'Error al obtener detalles de cámaras' };
+    }
+};
+
+/**
+ * Actualizar detalle de cámara (asignar zona, etc.)
+ * @param {number} detalleId - ID del detalle de cámara
+ * @param {Object} data - Datos a actualizar
+ * @returns {Promise}
+ */
+export const actualizarCamaraDetalle = async (detalleId, data) => {
+    try {
+        const response = await api.patch(`camara-detalles/${detalleId}/`, data);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || { error: 'Error al actualizar cámara' };
     }
 };
 
@@ -369,6 +426,66 @@ export const registrarCamara = async (camaraData) => {
         return response.data;
     } catch (error) {
         throw error.response?.data || { error: 'Error al registrar cámara' };
+    }
+};
+
+// ============================================
+// SERVICIOS DE ZONAS
+// ============================================
+
+/**
+ * Obtener todas las zonas
+ * @returns {Promise}
+ */
+export const obtenerZonas = async () => {
+    try {
+        const response = await api.get('zonas/');
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || { error: 'Error al obtener zonas' };
+    }
+};
+
+/**
+ * Crear una nueva zona
+ * @param {Object} zonaData
+ * @returns {Promise}
+ */
+export const crearZona = async (zonaData) => {
+    try {
+        const response = await api.post('zonas/', zonaData);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || { error: 'Error al crear zona' };
+    }
+};
+
+/**
+ * Actualizar zona existente
+ * @param {number} zonaId
+ * @param {Object} zonaData
+ * @returns {Promise}
+ */
+export const actualizarZona = async (zonaId, zonaData) => {
+    try {
+        const response = await api.patch(`zonas/${zonaId}/`, zonaData);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || { error: 'Error al actualizar zona' };
+    }
+};
+
+/**
+ * Eliminar zona
+ * @param {number} zonaId
+ * @returns {Promise}
+ */
+export const eliminarZona = async (zonaId) => {
+    try {
+        const response = await api.delete(`zonas/${zonaId}/`);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || { error: 'Error al eliminar zona' };
     }
 };
 
