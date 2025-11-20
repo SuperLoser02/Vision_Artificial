@@ -6,6 +6,7 @@ from pathlib import Path
 from collections import deque
 from threading import Lock
 import numpy as np
+from camaras.models import CamaraDetalles
 
 
 class VideoRecorder:
@@ -14,16 +15,20 @@ class VideoRecorder:
     Graba continuamente en segmentos y consolida al detectar alerta.
     """
     
-    def __init__(self, camera_id, output_dir='media/alerts'):
+    def __init__(self, camera_id, output_dir='media'):
+        self.user = CamaraDetalles.objects.get(id=camera_id).camara.user
         self.camera_id = camera_id
-        self.output_dir = Path(output_dir)
+        if not self.user:
+            self.output_dir = Path(output_dir, "user_tester")
+        else:
+            self.output_dir = Path(output_dir, f"user_{self.user.id}_{self.user.username}")
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
         # Configuración
-        self.segment_duration = 30  # Cada segmento dura 30 segundos
-        self.before_seconds = 150   # 2.5 minutos antes (150 segundos)
-        self.after_seconds = 150    # 2.5 minutos después (150 segundos)
-        self.fps = 25               # FPS del video de salida
+        self.segment_duration = 10  # Cada segmento dura 30 segundos
+        self.before_seconds = 10  # 2.5 minutos antes (150 segundos)
+        self.after_seconds = 20    # 2.5 minutos después (150 segundos)
+        self.fps = 16               # FPS del video de salida
         
         # Buffer circular de segmentos (archivos temporales)
         self.max_segments = int(self.before_seconds / self.segment_duration)  # 5 segmentos
@@ -227,7 +232,7 @@ class VideoRecorder:
         print(f"   Ruta: {output_path}")
         
         # Limpiar segmentos temporales
-        self._cleanup_temp_segments(all_segments)
+        self._cleanup_temp_segments()
         
         # Reset
         self.recording_alert = False
@@ -271,14 +276,30 @@ class VideoRecorder:
         return frame_copy
     
     def _cleanup_temp_segments(self, segments):
-        """Elimina segmentos temporales después de consolidar"""
-        for seg_path in segments:
-            if seg_path.exists():
+        """Elimina todos los archivos temporales que ya no sirven."""
+        print("🧹 Eliminando archivos temp no necesarios...")
+
+        # Borrar segmentos previos (solo queda 1 por el buffer)
+        for segment_path in list(self.segment_buffer):
+            if segment_path.exists():
                 try:
-                    seg_path.unlink()
-                except Exception as e:
-                    print(f"⚠️  No se pudo eliminar {seg_path}: {e}")
-    
+                    segment_path.unlink()
+                    print(f"   🗑️ Eliminado previo: {segment_path.name}")
+                except:
+                    print(f"   ❌ No se pudo eliminar: {segment_path.name}")
+
+        # Borrar segmentos posteriores
+        for segment_path in self.after_segments:
+            if segment_path.exists():
+                try:
+                    segment_path.unlink()
+                    print(f"   🗑️ Eliminado post: {segment_path.name}")
+                except:
+                    print(f"   ❌ No se pudo eliminar: {segment_path.name}")
+
+        # Vaciar los buffers
+        self.segment_buffer.clear()
+        self.after_segments.clear()
     def cleanup(self):
         """Limpia todo al detener la cámara"""
         if self.current_segment_writer:

@@ -21,8 +21,8 @@ class ia_detection(viewsets.ModelViewSet):
             )
         return Response({'status': 'started'})
     
-    @action(detail=True, methods=['get'])
-    def stop_detection(self, request):
+    @action(detail=False, methods=['get'])
+    def stop_detection(self, request, pk=None):
         """Detiene detección en una cámara"""
         user = self.request.user
         camaras_de_la_empresa = CamaraDetalles.objects.all()

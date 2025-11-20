@@ -5,49 +5,8 @@ import numpy as np
 import time
 from threading import Thread, Lock
 from .detector import detector
+from .video_recorder import VideoRecorder
 
-# ai_detection/ml/camera_processor.py
-
-# class CameraProcessor:
-    
-#     def __init__(self, camera_id, camera_type, camera_ip):
-#         # ... código existente ...
-        
-#         # Añadir grabador
-#         self.recorder = VideoRecorder(camera_id)
-    
-#     def _process_loop(self):
-#         """Loop principal"""
-        
-#         while self.running:
-#             ret, frame = self.cap.read()
-            
-#             if not ret:
-#                 continue
-            
-#             # ← NUEVO: Grabar frame (siempre)
-#             self.recorder.add_frame(frame)
-            
-#             # Procesar para detección
-#             self._add_frame(frame)
-            
-#             if len(self.frame_buffer) >= 16:
-#                 result = self._detect()
-                
-#                 if result['is_alert']:
-#                     # ← NUEVO: Trigger grabación de alerta
-#                     self.recorder.trigger_alert(
-#                         alert_type=result['class_name'],
-#                         confidence=result['confidence']
-#                     )
-                    
-#                     self._notify_websocket(result)
-    
-#     def stop(self):
-#         # ... código existente ...
-        
-#         # ← NUEVO: Limpiar grabador
-#         self.recorder.cleanup()
 class CameraProcessor:
     """
     Procesa una cámara individual.
@@ -58,6 +17,7 @@ class CameraProcessor:
         self.camera_id = camera_id
         self.camera_type = camera_type
         self.camera_ip = camera_ip
+        self.recorder = None
         
         # Construir stream URL
         if camera_type == "IP Webcam":
@@ -92,6 +52,7 @@ class CameraProcessor:
             print(f"No se pudo conectar a {self.stream_url}")
             raise ConnectionError(f"No se pudo conectar a {self.stream_url}")
         print(f"Conectado a {self.stream_url}")
+        self.recorder = VideoRecorder(self.camera_id)
         self.running = True
         self.thread = Thread(target=self._process_loop, daemon=True)
         self.thread.start()
@@ -103,7 +64,10 @@ class CameraProcessor:
             self.thread.join(timeout=5)
         if self.cap:
             self.cap.release()
-    
+        if hasattr(self, 'recorder') and self.recorder:
+            self.recorder.cleanup()
+
+
     def _process_loop(self):
         """Loop INFINITO que procesa frames mientras la cámara esté activa"""
 
@@ -113,32 +77,44 @@ class CameraProcessor:
             # Si la cámara no entrega frame
             if not ret or frame is None:
                 print("⚠️ Frame vacío o error de cámara, reintentando...")
-                time.sleep(0.1)
+                time.sleep(0.05)
                 continue
+            try:
+                self.recorder.add_frame(frame)
+            except Exception as e:
+                print(f"⚠️ Error al grabar frame en recorder: {e}")
 
             self._add_frame(frame)
 
-            # Cuando haya 16 frames → detectar
-            if len(self.frame_buffer) >= self.max_buffer_size:
+            # Esperar hasta tener suficientes frames
+            if len(self.frame_buffer) < self.max_buffer_size:
+                continue
+            result = self._detect()
 
-                result = self._detect()
+            # Protección para evitar crashes
+            if not result or not isinstance(result, dict):
+                print("⚠️ _detect() devolvió None o formato inválido, saltando…")
+                continue
+            if result.get("is_alert", False):
 
-                # >>> PREVENCIÓN DE CRASH <<<
-                if not result or not isinstance(result, dict):
-                    print("⚠️ _detect() devolvió None o formato inválido, saltando frame…")
-                    continue
+                # Websocket inmediatamente
+                self._notify_websocket(result)
 
-                # >>> PREVENCIÓN PARA claves faltantes <<<
-                if result.get("is_alert", False):
+                # Guardar en BD
+                detection_id = self._save_to_db(result)
 
-                    # Enviar por websocket
-                    self._notify_websocket(result)
+                # Activar grabación especial BEFORE + AFTER
+                try:
+                    self.recorder.trigger_alert(
+                        alert_type=result.get("class_name", "alerta"),
+                        confidence=result.get("confidence", 0)
+                    )
+                except Exception as e:
+                    print(f"⚠️ Error al activar grabación de alerta: {e}")
 
-                    # Guardar en BD
-                    detection_id = self._save_to_db(result)
+                # Si usas celery → habilitar:
+                # process_alert_task.delay(detection_id)
 
-                    # Celery en background
-                    # process_alert_task.delay(detection_id)
 
 
     
