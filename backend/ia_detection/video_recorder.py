@@ -118,15 +118,15 @@ class VideoRecorder:
         })
         
         # Si estamos grabando alerta, también guardar en lista de "después"
-        if self.recording_alert:
-            self.after_segments.append(self.current_segment_path)
-        
-        # Si el buffer está lleno, eliminar el más antiguo
-        if len(self.segment_buffer) > self.max_segments:
-            old_segment = self.segment_buffer.popleft()
-            if old_segment['path'].exists() and not self.recording_alert:
-                old_segment['path'].unlink()
-                print(f"🗑️  Segmento antiguo eliminado: {old_segment['path'].name}")
+        # Si estamos grabando alerta, NO eliminar los segmentos previos
+        if not self.recording_alert:
+            # Si el buffer expulsó automáticamente un segmento antiguo, bórralo
+            if len(self.segment_buffer) == self.max_segments:
+                oldest = self.segment_buffer[0]
+                if oldest['path'].exists():
+                    oldest['path'].unlink()
+                    print(f"🗑️  Segmento antiguo eliminado: {oldest['path'].name}")
+
         
         # Crear nuevo segmento
         self._create_new_segment()
@@ -233,12 +233,22 @@ class VideoRecorder:
         
         # Limpiar segmentos temporales
         self._cleanup_temp_segments()
-        
+
+        # Borrar también los segmentos usados en "before"
+        for seg_path in self.before_segments:
+            if seg_path.exists():
+                try:
+                    seg_path.unlink()
+                    print(f"   🗑️ Eliminado before: {seg_path.name}")
+                except:
+                    print(f"   ❌ No se pudo eliminar before: {seg_path.name}")
+
         # Reset
         self.recording_alert = False
         self.alert_info = None
         self.before_segments = []
         self.after_segments = []
+
         
         # Recrear writer para continuar grabando
         self._create_new_segment()
@@ -247,6 +257,9 @@ class VideoRecorder:
     
     def _add_overlay(self, frame, time_offset):
         """Añade overlay con información al frame"""
+        if self.alert_info is None:
+            return frame
+
         frame_copy = frame.copy()
         
         # Determinar color y texto según el momento
@@ -275,12 +288,13 @@ class VideoRecorder:
         
         return frame_copy
     
-    def _cleanup_temp_segments(self, segments):
+    def _cleanup_temp_segments(self):
         """Elimina todos los archivos temporales que ya no sirven."""
         print("🧹 Eliminando archivos temp no necesarios...")
 
-        # Borrar segmentos previos (solo queda 1 por el buffer)
-        for segment_path in list(self.segment_buffer):
+        # Borrar segmentos previos
+        for segment in list(self.segment_buffer):
+            segment_path = segment["path"]
             if segment_path.exists():
                 try:
                     segment_path.unlink()
@@ -300,12 +314,3 @@ class VideoRecorder:
         # Vaciar los buffers
         self.segment_buffer.clear()
         self.after_segments.clear()
-    def cleanup(self):
-        """Limpia todo al detener la cámara"""
-        if self.current_segment_writer:
-            self.current_segment_writer.release()
-        
-        # Eliminar segmentos temporales
-        for seg in self.segment_buffer:
-            if seg['path'].exists():
-                seg['path'].unlink()

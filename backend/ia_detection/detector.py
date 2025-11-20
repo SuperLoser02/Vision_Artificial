@@ -32,7 +32,7 @@ class ViolenceDetector:
             1: 'Violence',
             2: 'Weaponized'
         }
-        self.confidence_threshold =  0.6  # Umbral de confianza para alertas
+        self.confidence_threshold =  0.8  # Umbral de confianza para alertas
         
         self._load_model()
         self._initialized = True
