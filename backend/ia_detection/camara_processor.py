@@ -116,6 +116,12 @@ class CameraProcessor:
                 # Guardar en BD
                 detection_id = self._save_to_db(result)
 
+                # ← NUEVO: Enviar notificaciones automáticas
+                try:
+                    self._enviar_notificacion_sistema(detection_id, result)
+                except Exception as e:
+                    print(f"⚠️ Error al enviar notificaciones: {e}")
+
                 # Activar grabación especial BEFORE + AFTER
                 try:
                     self.recorder.trigger_alert(
@@ -249,7 +255,92 @@ class CameraProcessor:
         detection = DetectionEvent.objects.create(
             camara_id=id_camara,
             tipo_alerta=result['class_name'],
-            zona = id_camara.zona
+            zona = id_camara.zona,
+            user=user
         )
         
         return detection.id
+    
+    def _enviar_notificacion_sistema(self, detection_id, result):
+        """
+        Envía notificación automática al sistema cuando se detecta violencia.
+        Filtra perfiles por zona y rol según puede_recibir_alerta().
+        Funciona aunque zona sea None o datos sean fallback.
+        """
+        try:
+            from notificaciones.models import Notificacion
+            from perfil.models import Perfil
+            from camaras.models import CamaraDetalles
+            from django.utils import timezone
+            
+            # Obtener datos de cámara y zona
+            try:
+                camara_detalle = CamaraDetalles.objects.select_related('zona', 'camara').get(
+                    id=self.camera_id
+                )
+                zona = camara_detalle.zona
+                zona_id = zona.id if zona else None
+                zona_nombre = zona.nombre if zona else "Sin zona"
+            except Exception as e:
+                print(f"⚠️ Error obteniendo datos de cámara: {e}")
+                zona_id = None
+                zona_nombre = "Sin zona"
+            
+            # Determinar nivel según criticidad
+            event_type = result.get('event_type', 'AI Detection')
+            if result.get('is_critical'):
+                nivel_peligro = 'rojo'
+                prioridad = 'alta'
+                titulo = f"🚨 CRÍTICO: {result['class_name']} detectado"
+            else:
+                nivel_peligro = 'amarillo'
+                prioridad = 'media'
+                titulo = f"⚠️ ALERTA: {result['class_name']} detectado"
+            
+            # Filtrar perfiles que deben recibir esta alerta
+            try:
+                perfiles = Perfil.objects.filter(user_id__is_active=True).select_related('zona')
+                perfiles_destinatarios = [
+                    p for p in perfiles 
+                    if p.puede_recibir_alerta(zona_id)
+                ]
+            except Exception as e:
+                print(f"⚠️ Error filtrando perfiles: {e}")
+                perfiles_destinatarios = []
+            
+            # Crear notificaciones para cada destinatario
+            notificaciones_creadas = 0
+            for perfil in perfiles_destinatarios:
+                try:
+                    Notificacion.objects.create(
+                        perfil=perfil,
+                        titulo=titulo,
+                        mensaje=f"Detección en zona {zona_nombre}. Confianza: {result['confidence']:.0%}. Tipo: {event_type}",
+                        tipo='violencia',
+                        prioridad=prioridad,
+                        nivel_peligro=nivel_peligro,
+                        canal='push',
+                        zona=zona_nombre,
+                        camara_id=self.camera_id,
+                        metadata={
+                            'detection_id': detection_id,
+                            'confidence': result['confidence'],
+                            'class_id': result.get('class_id', 1),
+                            'class_name': result['class_name'],
+                            'probabilities': result.get('probabilities', {}),
+                            'camera_ip': self.camera_ip,
+                            'event_type': event_type,
+                            'timestamp': timezone.now().isoformat()
+                        }
+                    )
+                    notificaciones_creadas += 1
+                except Exception as e:
+                    print(f"⚠️ Error creando notificación para perfil {perfil.id}: {e}")
+                    continue
+            
+            print(f"📢 Notificaciones enviadas: {notificaciones_creadas} destinatarios | Zona: {zona_nombre} | Evento: {event_type}")
+        
+        except Exception as e:
+            print(f"❌ Error general en _enviar_notificacion_sistema: {str(e)}")
+            import traceback
+            traceback.print_exc()

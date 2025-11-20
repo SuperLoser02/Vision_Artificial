@@ -255,11 +255,15 @@ class NotificacionConsumer(AsyncWebsocketConsumer):
         """Obtener información del perfil (rol, zonas)"""
         from perfil.models import Perfil
         try:
-            perfil = Perfil.objects.get(id=self.perfil_id)
+            perfil = Perfil.objects.select_related('zona').get(id=self.perfil_id)
+            # Construir lista de zonas: si tiene zona asignada, devolver su nombre
+            zonas_list = []
+            if perfil.zona:
+                zonas_list = [perfil.zona.nombre]
+            
             return {
                 'rol': perfil.rol,
-                'zonas_asignadas': perfil.zonas_asignadas or [],
-                'nivel_severidad_minimo': perfil.nivel_severidad_minimo
+                'zonas_asignadas': zonas_list,
             }
         except Perfil.DoesNotExist:
             return None
