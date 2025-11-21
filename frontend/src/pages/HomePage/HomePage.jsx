@@ -93,10 +93,6 @@ const HomePage = () => {
                     </div>
                 </div>
             </main>
-
-            <footer className="mt-12 text-sm text-white text-opacity-70">
-                © 2025 Vision Artificial - Sistema de Seguridad Inteligente
-            </footer>
         </div>
     );
 };

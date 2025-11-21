@@ -15,9 +15,13 @@ const PerfilEditar = () => {
     const [error, setError] = useState("");
     
     const [formData, setFormData] = useState({
+        nombre: '',
+        apellido: '',
+        email: '',
+        telefono: '',
         rol: '',
         zona: '',
-        categorias: []  // Cambiado a array para ManyToMany
+        categorias: ''
     });
 
     useEffect(() => {
@@ -47,10 +51,18 @@ const PerfilEditar = () => {
             setCategorias(categoriasData);
 
             // Inicializar formulario con datos actuales
+            const categoriaId = perfilData.categorias && perfilData.categorias.length > 0 
+                ? perfilData.categorias[0] 
+                : '';
+
             setFormData({
+                nombre: perfilData.nombre || '',
+                apellido: perfilData.apellido || '',
+                email: perfilData.email || '',
+                telefono: perfilData.telefono || '',
                 rol: perfilData.rol || '',
                 zona: perfilData.zona || '',
-                categorias: perfilData.categorias || []  // Array de IDs de categorías
+                categorias: categoriaId
             });
 
             setError("");
@@ -72,23 +84,11 @@ const PerfilEditar = () => {
     };
 
     const handleInputChange = (e) => {
-        const { name, value, options } = e.target;
-        
-        // Manejar select múltiple para categorías
-        if (name === 'categorias') {
-            const selectedValues = Array.from(options)
-                .filter(option => option.selected)
-                .map(option => parseInt(option.value));
-            setFormData({
-                ...formData,
-                categorias: selectedValues
-            });
-        } else {
-            setFormData({
-                ...formData,
-                [name]: value === '' ? null : value
-            });
-        }
+        const { name, value } = e.target;
+        setFormData({
+            ...formData,
+            [name]: value === '' ? null : value
+        });
     };
 
     const handleSubmit = async (e) => {
@@ -98,16 +98,37 @@ const PerfilEditar = () => {
         try {
             setSaving(true);
             
-            // Preparar datos para enviar (solo enviar los que cambiaron)
+            // Preparar datos para enviar (todos los campos editables)
             const updateData = {};
+            
+            // Campos de información personal
+            if (formData.nombre !== perfil.nombre) {
+                updateData.nombre = formData.nombre;
+            }
+            if (formData.apellido !== perfil.apellido) {
+                updateData.apellido = formData.apellido;
+            }
+            if (formData.email !== perfil.email) {
+                updateData.email = formData.email;
+            }
+            if (formData.telefono !== perfil.telefono) {
+                updateData.telefono = formData.telefono || null;
+            }
+            
+            // Campos de asignación
             if (formData.rol !== perfil.rol) {
                 updateData.rol = formData.rol || null;
             }
             if (formData.zona !== perfil.zona) {
                 updateData.zona = formData.zona || null;
             }
-            // Siempre enviar categorías (es un array)
-            updateData.categorias = formData.categorias || [];
+            
+            // Convertir categoría a array para el backend
+            if (formData.categorias) {
+                updateData.categorias = [parseInt(formData.categorias)];
+            } else {
+                updateData.categorias = [];
+            }
 
             await actualizarPerfil(id, updateData);
             alert('Perfil actualizado exitosamente');
@@ -177,20 +198,20 @@ const PerfilEditar = () => {
                         <div className="grid md:grid-cols-2 gap-4">
                             <div>
                                 <p className="text-sm text-gray-600">CI / Cédula</p>
-                                <p className="text-lg font-medium">{perfil.ci}</p>
+                                <p className="text-lg font-medium text-gray-800">{perfil.ci}</p>
                             </div>
                             <div>
                                 <p className="text-sm text-gray-600">Email</p>
-                                <p className="text-lg font-medium">{perfil.email}</p>
+                                <p className="text-lg font-medium text-gray-800">{perfil.email}</p>
                             </div>
                             <div>
                                 <p className="text-sm text-gray-600">Nombre Completo</p>
-                                <p className="text-lg font-medium">{perfil.nombre} {perfil.apellido}</p>
+                                <p className="text-lg font-medium text-gray-800">{perfil.nombre} {perfil.apellido}</p>
                             </div>
                             {perfil.telefono && (
                                 <div>
                                     <p className="text-sm text-gray-600">Teléfono</p>
-                                    <p className="text-lg font-medium">{perfil.telefono}</p>
+                                    <p className="text-lg font-medium text-gray-800">{perfil.telefono}</p>
                                 </div>
                             )}
                         </div>
@@ -201,6 +222,66 @@ const PerfilEditar = () => {
                         <h2 className="text-xl font-bold mb-6 text-gray-800">Editar Asignaciones</h2>
 
                         <div className="grid md:grid-cols-2 gap-6">
+                            {/* Nombre */}
+                            <div className="mb-4">
+                                <label className="block text-gray-700 font-medium mb-2">
+                                    Nombre
+                                </label>
+                                <input
+                                    type="text"
+                                    name="nombre"
+                                    value={formData.nombre}
+                                    onChange={handleInputChange}
+                                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                    disabled={saving}
+                                />
+                            </div>
+
+                            {/* Apellido */}
+                            <div className="mb-4">
+                                <label className="block text-gray-700 font-medium mb-2">
+                                    Apellido
+                                </label>
+                                <input
+                                    type="text"
+                                    name="apellido"
+                                    value={formData.apellido}
+                                    onChange={handleInputChange}
+                                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                    disabled={saving}
+                                />
+                            </div>
+
+                            {/* Email */}
+                            <div className="mb-4">
+                                <label className="block text-gray-700 font-medium mb-2">
+                                    Email
+                                </label>
+                                <input
+                                    type="email"
+                                    name="email"
+                                    value={formData.email}
+                                    onChange={handleInputChange}
+                                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                    disabled={saving}
+                                />
+                            </div>
+
+                            {/* Teléfono */}
+                            <div className="mb-4">
+                                <label className="block text-gray-700 font-medium mb-2">
+                                    Teléfono
+                                </label>
+                                <input
+                                    type="text"
+                                    name="telefono"
+                                    value={formData.telefono}
+                                    onChange={handleInputChange}
+                                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                    disabled={saving}
+                                />
+                            </div>
+
                             {/* Rol */}
                             <div className="mb-4">
                                 <label className="block text-gray-700 font-medium mb-2">
@@ -246,7 +327,7 @@ const PerfilEditar = () => {
                                 </p>
                             </div>
 
-                            {/* Categorías (Múltiple) */}
+                            {/* Categorías (Simple) */}
                             <div className="mb-4 md:col-span-2">
                                 <label className="block text-gray-700 font-medium mb-2">
                                     Categorías / Turnos
@@ -255,10 +336,10 @@ const PerfilEditar = () => {
                                     name="categorias"
                                     value={formData.categorias}
                                     onChange={handleInputChange}
-                                    multiple
-                                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 min-h-[120px]"
+                                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
                                     disabled={saving}
                                 >
+                                    <option value="">Sin categoría asignada</option>
                                     {categorias.map((categoria) => (
                                         <option key={categoria.id} value={categoria.id}>
                                             {categoria.nombre}
@@ -266,7 +347,7 @@ const PerfilEditar = () => {
                                     ))}
                                 </select>
                                 <p className="text-xs text-gray-500 mt-1">
-                                    Mantén presionado Ctrl (Windows) o Cmd (Mac) para seleccionar múltiples turnos
+                                    Selecciona un turno
                                 </p>
                             </div>
                         </div>

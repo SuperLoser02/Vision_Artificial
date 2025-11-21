@@ -164,12 +164,6 @@ const Zonas = () => {
                     >
                         + Nueva Zona
                     </button>
-                    <button
-                        onClick={() => navigate('/dashboard')}
-                        className="bg-gray-500 bg-opacity-50 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:bg-opacity-70 transition-all duration-300"
-                    >
-                        Volver
-                    </button>
                 </div>
             </div>
 
@@ -208,9 +202,7 @@ const Zonas = () => {
                                 <div className="flex items-center justify-between mb-2">
                                     <div className="text-4xl">{getZoneIcon(index)}</div>
                                     <div className="flex gap-2">
-                                        <div className="text-xs bg-white bg-opacity-20 px-2 py-1 rounded">
-                                            ID: {zona.id}
-                                        </div>
+                                        
                                         {zona.activa ? (
                                             <div className="text-xs bg-green-500 bg-opacity-80 px-2 py-1 rounded">
                                                 ✓ Activa

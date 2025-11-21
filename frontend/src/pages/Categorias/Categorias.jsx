@@ -225,9 +225,7 @@ const Categorias = () => {
                                 <div className={`bg-gradient-to-r ${getCategoryColor(index)} p-6 text-white`}>
                                     <div className="flex items-center justify-between mb-2">
                                         <div className="text-4xl">{getCategoryIcon(index)}</div>
-                                        <div className="text-xs bg-white bg-opacity-20 px-2 py-1 rounded">
-                                            ID: {categoria.id}
-                                        </div>
+                                        
                                     </div>
                                     <h3 className="text-2xl font-bold">{categoria.nombre}</h3>
                                 </div>

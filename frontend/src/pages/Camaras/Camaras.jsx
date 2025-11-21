@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { obtenerEstadoCamara } from "../../services/Api";
+import { obtenerEstadoCamara, obtenerZonas } from "../../services/Api";
 import api from "../../services/Api";
 
 const Camaras = () => {
     const [camaras, setCamaras] = useState([]);
+    const [zonas, setZonas] = useState([]);
     const [showModal, setShowModal] = useState(false);
     const [formData, setFormData] = useState({
         ip: '',
@@ -57,8 +58,29 @@ const Camaras = () => {
     }, [camaras.length]);
 
     useEffect(() => {
+        cargarZonas();
+    }, []);
+
+    useEffect(() => {
         verificarDeteccionActiva();
     }, []);
+
+    const cargarZonas = async () => {
+        try {
+            const data = await obtenerZonas();
+            const zonasActivas = data.filter(zona => zona.activa);
+            setZonas(zonasActivas);
+        } catch (error) {
+            console.error('Error al cargar zonas:', error);
+            setZonas([]);
+        }
+    };
+
+    const obtenerNombreZona = (zonaId) => {
+        if (!zonaId) return 'Sin asignar';
+        const zona = zonas.find(z => z.id === zonaId);
+        return zona ? zona.nombre : 'Sin asignar';
+    };
 
     const registrarCamara = async (e) => {
         e.preventDefault();
@@ -94,7 +116,7 @@ const Camaras = () => {
         setEditId(detalle.id);
         setEditData({
             n_camara: detalle.n_camara,
-            zona: detalle.zona,
+            zona: detalle.zona || '',
             ip: detalle.ip,
             marca: detalle.marca,
             resolucion: detalle.resolucion
@@ -132,7 +154,7 @@ const Camaras = () => {
     const iniciarDeteccion = async () => {
         setCheckingDetection(true);
         try {
-            const res = await api.get('ia_detection/start_detection/');
+            await api.get('ia_detection/start_detection/');
             setDetectionActive(true);
             alert('Detección de IA iniciada en todas las cámaras');
         } catch (error) {
@@ -145,7 +167,7 @@ const Camaras = () => {
     const detenerDeteccion = async () => {
         setCheckingDetection(true);
         try {
-            const res = await api.get('ia_detection/stop_detection/');
+            await api.get('ia_detection/stop_detection/');
             setDetectionActive(false);
             alert('Detección de IA detenida');
         } catch (error) {
@@ -193,15 +215,13 @@ const Camaras = () => {
     return (
         <div className="w-full min-h-full">
             <div className="flex justify-between items-center mb-4">
-                <h1 className="text-2xl font-bold text-gray-800">Dashboard de Cámaras</h1>
-                <div className="flex items-center gap-4">
-                    {detectionActive && (
-                        <div className="flex items-center gap-2 bg-green-100 px-4 py-2 rounded-lg border border-green-300">
-                            <span className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
-                            <span className="text-green-700 font-semibold">Detección Activa</span>
-                        </div>
-                    )}
-                </div>
+                <h1 className="text-2xl font-bold text-gray-800">Cámaras</h1>
+                {detectionActive && (
+                    <div className="flex items-center gap-2 bg-green-100 px-4 py-2 rounded-lg border border-green-300">
+                        <span className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
+                        <span className="text-green-700 font-semibold">Detección Activa</span>
+                    </div>
+                )}
             </div>
             
             <div className="mb-4 flex gap-4">
@@ -237,11 +257,11 @@ const Camaras = () => {
                                 key={cam.id}
                                 className="bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300"
                             >
-                                <h2 className="text-lg font-semibold">Cámara {i + 1}</h2>
+                                <h2 className="text-lg font-semibold text-gray-800">Cámara {i + 1}</h2>
                                 {detalle ? (
                                     <>
                                         <p className="text-gray-600">IP: {detalle.ip}</p>
-                                        <p className="text-gray-600">Zona: {detalle.zona}</p>
+                                        <p className="text-gray-600">Zona: {obtenerNombreZona(detalle.zona)}</p>
                                         <p className="text-gray-600">Marca: {detalle.marca}</p>
                                         <p className="text-gray-600">Resolución: {detalle.resolucion}</p>
                                         {estado ? (
@@ -252,7 +272,7 @@ const Camaras = () => {
                                             <p className="font-bold text-yellow-600">Estado: Verificando...</p>
                                         )}
                                         {estado?.estado === 'ok' ? (
-                                            <div className="mt-2 w-full cursor-pointer" style={{ aspectRatio: '4/3', background: '#222' }} onClick={() => setFullscreenImg(`http://${detalle.ip}:8080/shot.jpg?t=${Date.now()}`)}>
+                                            <div className="mt-2 w-full cursor-pointer relative" style={{ aspectRatio: '4/3', background: '#222' }} onClick={() => setFullscreenImg(`http://${detalle.ip}:8080/shot.jpg?t=${Date.now()}`)}>
                                                 {detectionActive ? (
                                                     <img 
                                                         src={`http://${detalle.ip}:8080/shot.jpg?t=${Date.now()}`} 
@@ -260,7 +280,6 @@ const Camaras = () => {
                                                         className="w-full h-full object-contain" 
                                                         style={{ maxHeight: '100%', maxWidth: '100%' }}
                                                         onLoad={(e) => {
-                                                            // Recargar imagen cada 500ms para simular video
                                                             setTimeout(() => {
                                                                 if (detectionActive) {
                                                                     e.target.src = `http://${detalle.ip}:8080/shot.jpg?t=${Date.now()}`;
@@ -268,7 +287,6 @@ const Camaras = () => {
                                                             }, 500);
                                                         }}
                                                         onError={(e) => {
-                                                            console.error('Error cargando snapshot');
                                                             setTimeout(() => {
                                                                 if (detectionActive) {
                                                                     e.target.src = `http://${detalle.ip}:8080/shot.jpg?t=${Date.now()}`;
@@ -292,12 +310,9 @@ const Camaras = () => {
                                             </div>
                                         ) : (
                                             <div className="mt-2 w-full h-40 flex flex-col items-center justify-center bg-gray-100 text-gray-600">
-                                                <span className="text-4xl mb-2">Sin señal</span>
+                                                <span className="text-4xl mb-2">📷❌</span>
                                                 <p className="text-sm text-center px-2">
                                                     {estado ? 'Sin conexión' : 'Verificando conexión...'}
-                                                </p>
-                                                <p className="text-xs text-gray-500 mt-1">
-                                                    Asegúrate que la app esté activa
                                                 </p>
                                             </div>
                                         )}
@@ -316,20 +331,10 @@ const Camaras = () => {
                             </div>
                         );
                     })
-                ) : (
-                    Array.from({ length: 6 }, (_, i) => (
-                        <div
-                            key={i}
-                            className="bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300"
-                        >
-                            <h2 className="text-lg font-semibold">Cámara {i + 1}</h2>
-                            <p className="text-gray-600">{i + 1}</p>
-                        </div>
-                    ))
-                )}
+                ) : null}
             </div>
 
-            {/* Modal para imagen en pantalla completa */}
+            {/* Modales */}
             {fullscreenImg && (
                 <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50" onClick={() => setFullscreenImg(null)}>
                     <img src={fullscreenImg} alt="Vista completa" className="max-w-full max-h-full object-contain shadow-2xl" />
@@ -339,11 +344,10 @@ const Camaras = () => {
                 </div>
             )}
 
-            {/* Modal para editar detalles de cámara */}
             {editId && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div className="bg-white rounded-lg p-6 w-96">
-                        <h2 className="text-xl font-bold mb-4">Editar Detalles de Cámara</h2>
+                        <h2 className="text-xl font-bold mb-4 text-gray-800">Editar Detalles de Cámara</h2>
                         <form onSubmit={e => { e.preventDefault(); handleEditSave(); }}>
                             <div className="mb-4">
                                 <label className="block text-gray-700 mb-2">Número de Cámara</label>
@@ -351,7 +355,17 @@ const Camaras = () => {
                             </div>
                             <div className="mb-4">
                                 <label className="block text-gray-700 mb-2">Zona</label>
-                                <input type="text" name="zona" value={editData.zona} onChange={handleEditChange} className="w-full px-3 py-2 border rounded" />
+                                <select 
+                                    name="zona" 
+                                    value={editData.zona} 
+                                    onChange={handleEditChange} 
+                                    className="w-full px-3 py-2 border rounded"
+                                >
+                                    <option value="">Sin zona</option>
+                                    {zonas.map(z => (
+                                        <option key={z.id} value={z.id}>{z.nombre}</option>
+                                    ))}
+                                </select>
                             </div>
                             <div className="mb-4">
                                 <label className="block text-gray-700 mb-2">IP</label>
@@ -374,14 +388,13 @@ const Camaras = () => {
                 </div>
             )}
 
-            {/* Modal para agregar cámara manualmente */}
             {showModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div className="bg-white rounded-lg p-6 w-96">
-                        <h2 className="text-xl font-bold mb-4">Registrar Cámara Manualmente</h2>
+                        <h2 className="text-xl font-bold mb-4 text-gray-800">Registrar Cámara Manualmente</h2>
                         <form onSubmit={registrarCamara}>
                             <div className="mb-4">
-                                <label className="block text-gray-700 mb-2">IP de la cámara *</label>
+                                <label className="block text-gray-700 mb-2">IP de la cámara</label>
                                 <input
                                     type="text"
                                     name="ip"
@@ -415,15 +428,18 @@ const Camaras = () => {
                                 </select>
                             </div>
                             <div className="mb-4">
-                                <label className="block text-gray-700 mb-2">Zona/Ubicación</label>
-                                <input
-                                    type="text"
+                                <label className="block text-gray-700 mb-2">Zona (opcional)</label>
+                                <select
                                     name="zona"
                                     value={formData.zona}
                                     onChange={handleInputChange}
-                                    placeholder="Entrada principal"
                                     className="w-full px-3 py-2 border rounded"
-                                />
+                                >
+                                    <option value="">Sin zona</option>
+                                    {zonas.map(z => (
+                                        <option key={z.id} value={z.id}>{z.nombre}</option>
+                                    ))}
+                                </select>
                             </div>
                             <div className="flex gap-2">
                                 <button

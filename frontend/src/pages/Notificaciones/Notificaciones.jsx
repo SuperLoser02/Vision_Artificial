@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import api, { obtenerPerfiles } from "../../services/Api";
+import api, { obtenerPerfiles, obtenerZonas } from "../../services/Api";
 import { useNavigate } from "react-router-dom";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -11,12 +11,8 @@ const nivelesColores = [
 ];
 const niveles = ['rojo', 'amarillo', 'verde'];
 const tipos = [
-  "violencia",
-  "aglomeracion",
-  "intrusion",
-  "incendio",
-  "sistema",
-  "otro",
+  { value: "Violence", label: "Violencia" },
+  { value: "Weaponized", label: "Armas" }
 ];
 const canales = ["push", "sms", "email", "dashboard"];
 
@@ -39,7 +35,6 @@ const Notificaciones = () => {
   const [filtros, setFiltros] = useState({
     tipo: "",
     nivel_peligro: "",
-    canal: "",
     zona: "",
     leida: "",
   });
@@ -56,6 +51,7 @@ const Notificaciones = () => {
     zona: ""
   });
   const [perfiles, setPerfiles] = useState([]);
+  const [zonas, setZonas] = useState([]);
   const [formError, setFormError] = useState("");
   const [formLoading, setFormLoading] = useState(false);
   const navigate = useNavigate();
@@ -70,6 +66,7 @@ const Notificaciones = () => {
   useEffect(() => {
     cargarNotificaciones();
     cargarPerfiles();
+    cargarZonas();
     
     // Conectar WebSocket
     if (perfilId && token) {
@@ -256,6 +253,17 @@ const Notificaciones = () => {
     }
   };
 
+  const cargarZonas = async () => {
+    try {
+      const data = await obtenerZonas();
+      console.log('Zonas cargadas:', data);
+      setZonas(data);
+    } catch (err) {
+      console.error('Error al cargar zonas:', err);
+      setZonas([]);
+    }
+  };
+
   const handleFiltroChange = (e) => {
     setFiltros({ ...filtros, [e.target.name]: e.target.value });
   };
@@ -322,156 +330,38 @@ const Notificaciones = () => {
           </div>
           <div className="flex gap-3">
             <button
-              onClick={() => setShowForm(!showForm)}
+              onClick={() => setShowForm(true)}
               className="bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:bg-blue-700 transition-all duration-300"
             >
-              {showForm ? "Cancelar" : "+ Nueva Notificación"}
+              + Nueva Notificación
             </button>
           </div>
         </div>
 
-        {/* Formulario de nueva notificación */}
-        {showForm && (
-          <div className="bg-white rounded-lg shadow-lg p-6 mb-8 max-w-2xl mx-auto">
-            <h2 className="text-2xl font-bold mb-4 text-gray-800">Enviar Notificación Manual</h2>
-            {formError && (
-              <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">{formError}</div>
-            )}
-            <form onSubmit={handleEnviarNotificacion}>
-              <div className="mb-4">
-                <label className="block text-gray-700 font-medium mb-2">Perfil destinatario *</label>
-                <select
-                  name="perfil"
-                  value={formData.perfil}
-                  onChange={handleFormChange}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  required
-                  disabled={formLoading}
-                >
-                  <option value="">Selecciona un perfil</option>
-                  {perfiles.map((p) => (
-                    <option key={p.id} value={p.id}>{p.nombre} {p.apellido}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="mb-4">
-                <label className="block text-gray-700 font-medium mb-2">Título (opcional)</label>
-                <input
-                  type="text"
-                  name="titulo"
-                  value={formData.titulo}
-                  onChange={handleFormChange}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  placeholder="Título de la notificación (se genera automáticamente si está vacío)"
-                  disabled={formLoading}
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block text-gray-700 font-medium mb-2">Mensaje *</label>
-                <textarea
-                  name="mensaje"
-                  value={formData.mensaje}
-                  onChange={handleFormChange}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  placeholder="Escribe el mensaje de la notificación (mínimo 10 caracteres)..."
-                  rows="3"
-                  required
-                  disabled={formLoading}
-                  minLength={10}
-                />
-              </div>
-              <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-2">
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">Tipo</label>
-                  <select name="tipo" value={formData.tipo} onChange={handleFormChange} className="w-full px-2 py-2 rounded border" disabled={formLoading}>
-                    {tipos.map((t) => (
-                      <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">Prioridad</label>
-                  <select name="prioridad" value={formData.prioridad} onChange={handleFormChange} className="w-full px-2 py-2 rounded border" disabled={formLoading}>
-                    <option value="alta">Alta</option>
-                    <option value="media">Media</option>
-                    <option value="baja">Baja</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">Nivel de peligro</label>
-                  <select name="nivel_peligro" value={formData.nivel_peligro} onChange={handleFormChange} className="w-full px-2 py-2 rounded border" disabled={formLoading}>
-                    {niveles.map((n) => (
-                      <option key={n} value={n}>{n.charAt(0).toUpperCase() + n.slice(1)}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">Canal</label>
-                  <select name="canal" value={formData.canal} onChange={handleFormChange} className="w-full px-2 py-2 rounded border" disabled={formLoading}>
-                    {canales.map((c) => (
-                      <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="mb-4">
-                <label className="block text-gray-700 font-medium mb-2">Zona</label>
-                <input
-                  type="text"
-                  name="zona"
-                  value={formData.zona}
-                  onChange={handleFormChange}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  placeholder="Zona de interés (opcional)"
-                  disabled={formLoading}
-                />
-              </div>
-              <div className="flex gap-2 mt-4">
-                <button
-                  type="submit"
-                  disabled={formLoading}
-                  className="flex-1 bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-blue-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {formLoading ? 'Enviando...' : 'Enviar Notificación'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  disabled={formLoading}
-                  className="flex-1 bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg hover:bg-gray-500 transition-all duration-300"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-
         {/* Filtros */}
-        <div className="mb-6 grid grid-cols-2 md:grid-cols-5 gap-2">
-          <select name="tipo" value={filtros.tipo} onChange={handleFiltroChange} className="p-2 rounded">
-            <option value="">Tipo</option>
+        <div className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-2">
+          <select name="tipo" value={filtros.tipo} onChange={handleFiltroChange} className="p-2 rounded border border-gray-300">
+            <option value="">Todos los tipos</option>
             {tipos.map((t) => (
-              <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+              <option key={t.value} value={t.value}>{t.label}</option>
             ))}
           </select>
-          <select name="nivel_peligro" value={filtros.nivel_peligro} onChange={handleFiltroChange} className="p-2 rounded">
-            <option value="">Nivel</option>
+          <select name="nivel_peligro" value={filtros.nivel_peligro} onChange={handleFiltroChange} className="p-2 rounded border border-gray-300">
+            <option value="">Todos los niveles</option>
             {niveles.map((n) => (
               <option key={n} value={n}>{n.charAt(0).toUpperCase() + n.slice(1)}</option>
             ))}
           </select>
-          <select name="canal" value={filtros.canal} onChange={handleFiltroChange} className="p-2 rounded">
-            <option value="">Canal</option>
-            {canales.map((c) => (
-              <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
+          <select name="zona" value={filtros.zona} onChange={handleFiltroChange} className="p-2 rounded border border-gray-300">
+            <option value="">Todas las zonas</option>
+            {zonas.map((z) => (
+              <option key={z.id} value={z.nombre}>{z.nombre}</option>
             ))}
           </select>
-          <input name="zona" value={filtros.zona} onChange={handleFiltroChange} placeholder="Zona" className="p-2 rounded" />
-          <select name="leida" value={filtros.leida} onChange={handleFiltroChange} className="p-2 rounded">
-            <option value="">Leída</option>
-            <option value="true">Sí</option>
-            <option value="false">No</option>
+          <select name="leida" value={filtros.leida} onChange={handleFiltroChange} className="p-2 rounded border border-gray-300">
+            <option value="">Todas</option>
+            <option value="true">Leídas</option>
+            <option value="false">No leídas</option>
           </select>
         </div>
 
@@ -556,6 +446,158 @@ const Notificaciones = () => {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Modal para nueva notificación */}
+        {showForm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+              <h2 className="text-2xl font-bold mb-6 text-gray-800">Enviar Notificación Manual</h2>
+              
+              {formError && (
+                <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+                  {formError}
+                </div>
+              )}
+
+              <form onSubmit={handleEnviarNotificacion}>
+                <div className="mb-4">
+                  <label className="block text-gray-700 font-medium mb-2">Perfil destinatario *</label>
+                  <select
+                    name="perfil"
+                    value={formData.perfil}
+                    onChange={handleFormChange}
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    required
+                    disabled={formLoading}
+                  >
+                    <option value="">Selecciona un perfil</option>
+                    {perfiles.map((p) => (
+                      <option key={p.id} value={p.id}>{p.nombre} {p.apellido}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-gray-700 font-medium mb-2">Título (opcional)</label>
+                  <input
+                    type="text"
+                    name="titulo"
+                    value={formData.titulo}
+                    onChange={handleFormChange}
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    placeholder="Título de la notificación (se genera automáticamente si está vacío)"
+                    disabled={formLoading}
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-gray-700 font-medium mb-2">Mensaje *</label>
+                  <textarea
+                    name="mensaje"
+                    value={formData.mensaje}
+                    onChange={handleFormChange}
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    placeholder="Escribe el mensaje de la notificación (mínimo 10 caracteres)..."
+                    rows="3"
+                    required
+                    disabled={formLoading}
+                    minLength={10}
+                  />
+                </div>
+
+                <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <div>
+                    <label className="block text-gray-700 font-medium mb-2">Tipo</label>
+                    <select name="tipo" value={formData.tipo} onChange={handleFormChange} className="w-full px-2 py-2 rounded border" disabled={formLoading}>
+                      {tipos.map((t) => (
+                        <option key={t.value} value={t.value}>{t.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 font-medium mb-2">Prioridad</label>
+                    <select name="prioridad" value={formData.prioridad} onChange={handleFormChange} className="w-full px-2 py-2 rounded border" disabled={formLoading}>
+                      <option value="alta">Alta</option>
+                      <option value="media">Media</option>
+                      <option value="baja">Baja</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 font-medium mb-2">Nivel de peligro</label>
+                    <select name="nivel_peligro" value={formData.nivel_peligro} onChange={handleFormChange} className="w-full px-2 py-2 rounded border" disabled={formLoading}>
+                      {niveles.map((n) => (
+                        <option key={n} value={n}>{n.charAt(0).toUpperCase() + n.slice(1)}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 font-medium mb-2">Canal</label>
+                    <select name="canal" value={formData.canal} onChange={handleFormChange} className="w-full px-2 py-2 rounded border" disabled={formLoading}>
+                      {canales.map((c) => (
+                        <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-gray-700 font-medium mb-2">Zona (opcional)</label>
+                  <select
+                    name="zona"
+                    value={formData.zona}
+                    onChange={handleFormChange}
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    disabled={formLoading}
+                  >
+                    <option value="">Sin zona</option>
+                    {zonas.map((z) => (
+                      <option key={z.id} value={z.nombre}>{z.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
+                  <p className="text-sm text-blue-700">
+                    <strong>Consejo:</strong> Las notificaciones manuales son útiles para enviar 
+                    alertas específicas a los guardias. Asegúrate de seleccionar el perfil correcto 
+                    y el nivel de peligro adecuado.
+                  </p>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={formLoading}
+                    className="flex-1 bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-blue-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {formLoading ? 'Enviando...' : 'Enviar Notificación'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowForm(false);
+                      setFormError("");
+                      setFormData({
+                        perfil: "",
+                        titulo: "",
+                        mensaje: "",
+                        tipo: "Violence",
+                        prioridad: "media",
+                        nivel_peligro: "rojo",
+                        canal: "dashboard",
+                        zona: ""
+                      });
+                    }}
+                    disabled={formLoading}
+                    className="flex-1 bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg hover:bg-gray-500 transition-all duration-300"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
 

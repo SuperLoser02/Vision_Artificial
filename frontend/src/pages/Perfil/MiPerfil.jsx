@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { obtenerMiPerfil, cambiarContraseñaPerfil, cerrarSesionPerfil } from "../../services/Api";
+import { obtenerMiPerfil, cambiarContraseñaPerfil, cerrarSesionPerfil, obtenerCategorias } from "../../services/Api";
 
 const MiPerfil = () => {
     const [perfil, setPerfil] = useState(null);
+    const [categorias, setCategorias] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -18,7 +19,17 @@ const MiPerfil = () => {
 
     useEffect(() => {
         cargarPerfil();
+        cargarCategorias();
     }, []);
+
+    const cargarCategorias = async () => {
+        try {
+            const data = await obtenerCategorias();
+            setCategorias(data);
+        } catch (error) {
+            console.error('Error al cargar categorías:', error);
+        }
+    };
 
     const cargarPerfil = async () => {
         try {
@@ -32,6 +43,13 @@ const MiPerfil = () => {
             }
 
             const data = await obtenerMiPerfil(token);
+            console.log('DATOS DEL PERFIL:', data);
+            console.log('CATEGORÍAS:', data.categorias);
+            console.log('TIPO DE CATEGORÍAS:', typeof data.categorias);
+            if (Array.isArray(data.categorias)) {
+                console.log('ES ARRAY, LONGITUD:', data.categorias.length);
+                console.log('PRIMER ELEMENTO:', data.categorias[0]);
+            }
             setPerfil(data);
             setError("");
         } catch (err) {
@@ -253,12 +271,52 @@ const MiPerfil = () => {
                             </div>
 
                             <div className="bg-purple-50 p-4 rounded-lg border-l-4 border-purple-500">
-                                <p className="text-sm text-purple-600 mb-1 font-semibold">Nivel de Alertas</p>
+                                <p className="text-sm text-purple-600 mb-1 font-semibold">Categoría</p>
                                 <p className="text-lg text-gray-800 font-medium">
-                                    {perfil?.nivel_severidad_minimo === 'rojo' ? '🔴 Solo Críticas' :
-                                        perfil?.nivel_severidad_minimo === 'amarillo' ? '🟡 Medias y Críticas' :
-                                            perfil?.nivel_severidad_minimo === 'verde' ? '🟢 Todas las Alertas' :
-                                                'No especificado'}
+                                    {(() => {
+                                        if (!perfil?.categorias) return 'No especificado';
+                                        
+                                        // Si es un array de IDs (números)
+                                        if (Array.isArray(perfil.categorias)) {
+                                            if (perfil.categorias.length === 0) return 'No especificado';
+                                            
+                                            // Si son números (IDs), buscar nombres en el array de categorías
+                                            if (typeof perfil.categorias[0] === 'number') {
+                                                const nombres = perfil.categorias
+                                                    .map(catId => {
+                                                        const cat = categorias.find(c => c.id === catId);
+                                                        return cat ? cat.nombre : `ID: ${catId}`;
+                                                    })
+                                                    .join(', ');
+                                                return nombres || 'No especificado';
+                                            }
+                                            
+                                            // Si son objetos con propiedad 'nombre'
+                                            if (typeof perfil.categorias[0] === 'object' && perfil.categorias[0]?.nombre) {
+                                                return perfil.categorias.map(cat => cat.nombre).join(', ');
+                                            }
+                                            
+                                            // Si son strings directamente
+                                            return perfil.categorias.join(', ');
+                                        }
+                                        
+                                        // Si es un número único (ID), buscar el nombre
+                                        if (typeof perfil.categorias === 'number') {
+                                            const cat = categorias.find(c => c.id === perfil.categorias);
+                                            return cat ? cat.nombre : `ID: ${perfil.categorias}`;
+                                        }
+                                        
+                                        // Si es un objeto o string directo
+                                        if (typeof perfil.categorias === 'object' && perfil.categorias.nombre) {
+                                            return perfil.categorias.nombre;
+                                        }
+                                        
+                                        if (typeof perfil.categorias === 'string') {
+                                            return perfil.categorias;
+                                        }
+                                        
+                                        return 'No especificado';
+                                    })()}
                                 </p>
                             </div>
                         </div>
