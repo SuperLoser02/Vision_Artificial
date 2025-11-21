@@ -13,10 +13,15 @@ const nivelesColores = [
 const niveles = ['rojo', 'amarillo', 'verde'];
 const tipos = [
   { value: "violencia", label: "Violencia" },
-  { value: "arma", label: "Armas" },
+  { value: "aglomeracion", label: "Aglomeración" },
+  { value: "intrusion", label: "Intrusión" },
+  { value: "incendio", label: "Incendio" },
+  { value: "sistema", label: "Sistema" },
+  { value: "alerta", label: "Alerta" },
+  { value: "mensaje", label: "Mensaje" },
   { value: "otro", label: "Otro" }
 ];
-const canales = ["push", "sms", "email", "dashboard"];
+const canales = ["push", "dashboard"];
 
 const getNivelColor = (nivel) => {
   if (nivel === 'rojo') return nivelesColores[0];
@@ -161,50 +166,53 @@ const Notificaciones = () => {
     setError("");
     try {
       let params = {};
-      // Solo filtrar por perfil si existe y estamos en vista de guardia
-      // Si estamos como admin/empresa, NO filtrar por perfil para ver TODAS las notificaciones
+      
+      // Obtener perfil actual
       const perfilActual = JSON.parse(localStorage.getItem("perfilActual"));
       const perfilId = perfilActual?.id;
+      const rolActual = perfilActual?.rol?.toLowerCase();
       
-      // SOLO aplicar filtro de perfil si explícitamente está en el filtro
-      // No aplicar por defecto para que admin vea todas
-      if (filtros.perfil_id) {
-        params.perfil_id = filtros.perfil_id;
+      console.log('🔍 Cargando notificaciones...');
+      console.log('Perfil actual:', perfilActual);
+      console.log('Rol:', rolActual);
+      
+      // FILTRO POR ROL: Solo los jefes ven todas las notificaciones
+      // Los demás roles (guardia, etc.) solo ven sus propias notificaciones
+      if (rolActual && rolActual !== 'jefe_seguridad' && perfilId) {
+        // NO es jefe: filtrar por su perfil
+        params.perfil_id = perfilId;
+        console.log('✅ Usuario NO es jefe, filtrando por perfil_id:', perfilId);
+      } else {
+        console.log('👔 Usuario es jefe o admin, mostrando todas las notificaciones');
       }
-      // Si hay perfilId pero estamos viendo como admin, NO filtrar
-      // (el admin debería ver todas las notificaciones)
       
-      // Aplicar otros filtros
+      // Aplicar filtros adicionales del usuario
       Object.entries(filtros).forEach(([k, v]) => {
         if (v && k !== 'perfil_id') params[k] = v;
       });
       
-      console.log('Cargando notificaciones con params:', params);
-      console.log('Usuario actual:', localStorage.getItem('authToken') ? 'Admin/Empresa' : 'Sin sesión');
-      console.log('Perfil actual:', perfilActual);
+      console.log('📤 Parámetros de consulta:', params);
       
       const res = await api.get("notificaciones/", { params });
-      console.log('Respuesta completa del servidor:', res);
-      console.log('Notificaciones recibidas:', res.data);
-      console.log('Tipo de datos:', typeof res.data, 'Es array:', Array.isArray(res.data));
+      console.log('📥 Respuesta del servidor:', res.data);
       
       // El backend puede devolver { count, results } o directamente un array
       let notifs = [];
       if (res.data && res.data.results) {
         // Formato con paginación
         notifs = Array.isArray(res.data.results) ? res.data.results : [];
-        console.log('Formato paginado, notificaciones:', notifs.length);
+        console.log('✅ Formato paginado, notificaciones:', notifs.length);
       } else if (Array.isArray(res.data)) {
         // Formato array directo
         notifs = res.data;
-        console.log('Formato array directo, notificaciones:', notifs.length);
+        console.log('✅ Formato array directo, notificaciones:', notifs.length);
       } else {
-        console.warn('Formato de respuesta no reconocido:', res.data);
+        console.warn('⚠️ Formato de respuesta no reconocido:', res.data);
       }
       
       setNotificaciones(notifs);
     } catch (err) {
-      console.error('Error al cargar notificaciones:', err);
+      console.error('❌ Error al cargar notificaciones:', err);
       setError(err.detail || err.error || "No se pudieron cargar las notificaciones");
       setNotificaciones([]); // Asegurar array vacío en caso de error
     }
@@ -253,20 +261,46 @@ const Notificaciones = () => {
   const handleEnviarNotificacion = async (e) => {
     e.preventDefault();
     setFormError("");
+    
+    // Validación básica
     if (!formData.perfil || !formData.mensaje.trim()) {
       setFormError("Debes seleccionar un perfil y escribir un mensaje.");
       return;
     }
     
-    // Si no hay título, generar uno basado en el tipo
+    if (formData.mensaje.trim().length < 10) {
+      setFormError("El mensaje debe tener al menos 10 caracteres.");
+      return;
+    }
+    
+    // Preparar datos en el formato correcto que espera el backend
     const dataToSend = {
-      ...formData,
-      titulo: formData.titulo.trim() || `${formData.tipo.charAt(0).toUpperCase() + formData.tipo.slice(1)} detectado`
+      perfil: parseInt(formData.perfil), // Asegurar que sea número
+      mensaje: formData.mensaje.trim(),
+      tipo: formData.tipo,
+      prioridad: formData.prioridad,
+      nivel_peligro: formData.nivel_peligro,
+      canal: formData.canal
     };
+    
+    // Agregar título solo si hay uno
+    if (formData.titulo.trim()) {
+      dataToSend.titulo = formData.titulo.trim();
+    }
+    
+    // Agregar zona solo si hay una seleccionada
+    if (formData.zona) {
+      dataToSend.zona = formData.zona;
+    }
+    
+    console.log('📤 Enviando notificación:', dataToSend);
     
     setFormLoading(true);
     try {
-      await api.post("notificaciones/", dataToSend);
+      const response = await api.post("notificaciones/", dataToSend);
+      console.log('✅ Notificación enviada:', response.data);
+      
+      // Cerrar modal y limpiar formulario
       setShowForm(false);
       setFormData({
         perfil: "",
@@ -278,10 +312,27 @@ const Notificaciones = () => {
         canal: "dashboard",
         zona: ""
       });
+      
+      // Recargar notificaciones
       cargarNotificaciones();
+      
+      // Mostrar mensaje de éxito
+      toast.success('✅ Notificación enviada correctamente', {
+        position: "top-right",
+        autoClose: 3000,
+      });
     } catch (err) {
-      console.error('Error al enviar notificación:', err);
-      setFormError(err.detail || err.error || "No se pudo enviar la notificación");
+      console.error('❌ Error al enviar notificación:', err);
+      console.error('Detalles del error:', err.response?.data);
+      
+      // Mostrar error específico del backend
+      const errorMsg = err.response?.data?.perfil?.[0] 
+        || err.response?.data?.mensaje?.[0]
+        || err.response?.data?.detail
+        || err.response?.data?.error
+        || "No se pudo enviar la notificación. Verifica los datos.";
+      
+      setFormError(errorMsg);
     }
     setFormLoading(false);
   };
@@ -443,7 +494,9 @@ const Notificaciones = () => {
                   >
                     <option value="">Selecciona un perfil</option>
                     {perfiles.map((p) => (
-                      <option key={p.id} value={p.id}>{p.nombre} {p.apellido}</option>
+                      <option key={p.id} value={p.id}>
+                        {p.nombre} {p.apellido} - {p.rol || 'Sin rol'}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -458,6 +511,7 @@ const Notificaciones = () => {
                     className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
                     placeholder="Título de la notificación (se genera automáticamente si está vacío)"
                     disabled={formLoading}
+                    maxLength={200}
                   />
                 </div>
 
@@ -469,17 +523,26 @@ const Notificaciones = () => {
                     onChange={handleFormChange}
                     className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
                     placeholder="Escribe el mensaje de la notificación (mínimo 10 caracteres)..."
-                    rows="3"
+                    rows="4"
                     required
                     disabled={formLoading}
                     minLength={10}
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formData.mensaje.length} caracteres
+                  </p>
                 </div>
 
-                <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div className="mb-4 grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-gray-700 font-medium mb-2">Tipo</label>
-                    <select name="tipo" value={formData.tipo} onChange={handleFormChange} className="w-full px-2 py-2 rounded border" disabled={formLoading}>
+                    <select 
+                      name="tipo" 
+                      value={formData.tipo} 
+                      onChange={handleFormChange} 
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" 
+                      disabled={formLoading}
+                    >
                       {tipos.map((t) => (
                         <option key={t.value} value={t.value}>{t.label}</option>
                       ))}
@@ -487,26 +550,46 @@ const Notificaciones = () => {
                   </div>
                   <div>
                     <label className="block text-gray-700 font-medium mb-2">Prioridad</label>
-                    <select name="prioridad" value={formData.prioridad} onChange={handleFormChange} className="w-full px-2 py-2 rounded border" disabled={formLoading}>
+                    <select 
+                      name="prioridad" 
+                      value={formData.prioridad} 
+                      onChange={handleFormChange} 
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" 
+                      disabled={formLoading}
+                    >
                       <option value="alta">Alta</option>
                       <option value="media">Media</option>
                       <option value="baja">Baja</option>
                     </select>
                   </div>
+                </div>
+
+                <div className="mb-4 grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-gray-700 font-medium mb-2">Nivel de peligro</label>
-                    <select name="nivel_peligro" value={formData.nivel_peligro} onChange={handleFormChange} className="w-full px-2 py-2 rounded border" disabled={formLoading}>
-                      {niveles.map((n) => (
-                        <option key={n} value={n}>{n.charAt(0).toUpperCase() + n.slice(1)}</option>
-                      ))}
+                    <select 
+                      name="nivel_peligro" 
+                      value={formData.nivel_peligro} 
+                      onChange={handleFormChange} 
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" 
+                      disabled={formLoading}
+                    >
+                      <option value="rojo">🛑 Rojo (Alto)</option>
+                      <option value="amarillo">⚠️ Amarillo (Medio)</option>
+                      <option value="verde">✅ Verde (Bajo)</option>
                     </select>
                   </div>
                   <div>
                     <label className="block text-gray-700 font-medium mb-2">Canal</label>
-                    <select name="canal" value={formData.canal} onChange={handleFormChange} className="w-full px-2 py-2 rounded border" disabled={formLoading}>
-                      {canales.map((c) => (
-                        <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
-                      ))}
+                    <select 
+                      name="canal" 
+                      value={formData.canal} 
+                      onChange={handleFormChange} 
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" 
+                      disabled={formLoading}
+                    >
+                      <option value="dashboard">📊 Dashboard</option>
+                      <option value="push">🔔 Push (App Móvil)</option>
                     </select>
                   </div>
                 </div>
@@ -527,15 +610,20 @@ const Notificaciones = () => {
                   </select>
                 </div>
 
-                <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
-                  <p className="text-sm text-blue-700">
-                    <strong>Consejo:</strong> Las notificaciones manuales son útiles para enviar 
-                    alertas específicas a los guardias. Asegúrate de seleccionar el perfil correcto 
-                    y el nivel de peligro adecuado.
-                  </p>
+                <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6 rounded">
+                  <div className="flex items-start gap-3">
+                    <div className="text-2xl">💡</div>
+                    <div>
+                      <p className="text-sm text-blue-800">
+                        <strong>Consejos:</strong> Las notificaciones manuales son útiles para enviar 
+                        alertas específicas a los guardias. Asegúrate de seleccionar el perfil correcto 
+                        y el nivel de peligro adecuado.
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-3">
                   <button
                     type="submit"
                     disabled={formLoading}
@@ -552,7 +640,7 @@ const Notificaciones = () => {
                         perfil: "",
                         titulo: "",
                         mensaje: "",
-                        tipo: "Violence",
+                        tipo: "violencia",
                         prioridad: "media",
                         nivel_peligro: "rojo",
                         canal: "dashboard",
@@ -560,7 +648,7 @@ const Notificaciones = () => {
                       });
                     }}
                     disabled={formLoading}
-                    className="flex-1 bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg hover:bg-gray-500 transition-all duration-300"
+                    className="px-6 bg-gray-400 text-white font-semibold py-3 rounded-lg hover:bg-gray-500 transition-all duration-300 disabled:opacity-50"
                   >
                     Cancelar
                   </button>

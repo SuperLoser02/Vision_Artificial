@@ -32,17 +32,17 @@ class NotificacionViewSet(viewsets.ModelViewSet):
     serializer_class = NotificacionSerializer
 
     def create(self, request, *args, **kwargs):
-        """Crear notificación y enviarla por WebSocket y FCM"""
+        """
+        Crear notificación y enviarla por WebSocket y FCM.
+        NOTA: El envío por WebSocket se hace automáticamente via signal.
+        Solo agregamos lógica adicional si es necesaria.
+        """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         notificacion = serializer.save()
         
-        # Envío inteligente por WebSocket (filtra por rol/zona/severidad)
-        self._enviar_por_websocket_inteligente(notificacion)
-        
-        # Enviar por FCM si el canal es 'push'
-        if notificacion.canal == 'push':
-            self._enviar_por_fcm(notificacion)
+        # El signal ya envía por WebSocket y FCM automáticamente
+        # No llamar a _enviar_por_websocket_inteligente() para evitar duplicados
         
         # Retornar respuesta
         response_serializer = NotificacionSerializer(notificacion)
@@ -195,27 +195,19 @@ class NotificacionViewSet(viewsets.ModelViewSet):
         """
         SECURITY VISION: Envío inteligente de notificación por WebSocket.
         
-        NUEVA LÓGICA REFACTORIZADA:
-        1. Obtener zona_id desde camara_id si existe
-        2. Filtrar perfiles usando puede_recibir_alerta(zona_evento_id)
-           - Jefes de seguridad: SIEMPRE reciben (sin filtro)
-           - Guardias de seguridad: SOLO si perfil.zona_id == zona_evento_id
-        3. NO usar severidad, NO usar categorías
-        
-        Grupos WebSocket:
-        - notificaciones_{perfil_id}: Individual
-        - supervision_global: Todos los jefes de seguridad
-        - zona_{zona_id}: Guardias de una zona específica
+        LÓGICA SIMPLIFICADA (SIN DUPLICADOS):
+        - Enviar SOLO al grupo individual del perfil destinatario
+        - Cada perfil tiene su canal único: notificaciones_{perfil_id}
+        - NO enviar a grupos adicionales (supervision_global, zona, rol)
+          porque causan duplicados si el perfil está suscrito a varios
         """
         try:
             from perfil.models import Perfil
-            from camaras.models import CamaraDetalles
             
             channel_layer = get_channel_layer()
             serializer = NotificacionSerializer(notificacion)
-            grupos_enviados = []
             
-            # 1. Enviar a perfil específico si existe
+            # Enviar ÚNICAMENTE al perfil destinatario específico
             if notificacion.perfil:
                 room_group_name = f'notificaciones_{notificacion.perfil.id}'
                 async_to_sync(channel_layer.group_send)(
@@ -225,70 +217,15 @@ class NotificacionViewSet(viewsets.ModelViewSet):
                         'notificacion': serializer.data
                     }
                 )
-                grupos_enviados.append(room_group_name)
-            
-            # 2. Obtener zona_id desde la cámara (si existe)
-            zona_evento_id = None
-            if notificacion.camara_id:
-                try:
-                    camara_detalle = CamaraDetalles.objects.get(id=notificacion.camara_id)
-                    if camara_detalle.zona:
-                        zona_evento_id = camara_detalle.zona.id
-                except CamaraDetalles.DoesNotExist:
-                    logger.warning(f"CamaraDetalles {notificacion.camara_id} no encontrada")
-            
-            # 3. Obtener perfiles activos que pueden recibir esta alerta
-            perfiles = Perfil.objects.filter(user_id__is_active=True).select_related('zona')
-            perfiles_destinatarios = [
-                p for p in perfiles 
-                if p.puede_recibir_alerta(zona_evento_id)
-            ]
-            
-            # 4. Enviar a todos los jefes de seguridad (supervisión global)
-            async_to_sync(channel_layer.group_send)(
-                'supervision_global',
-                {
-                    'type': 'nueva_notificacion',
-                    'notificacion': serializer.data
-                }
-            )
-            grupos_enviados.append('supervision_global')
-            
-            # 5. Enviar a grupo de zona específica si existe zona_evento_id
-            if zona_evento_id:
-                zone_group_name = f'zona_{zona_evento_id}'
-                async_to_sync(channel_layer.group_send)(
-                    zone_group_name,
-                    {
-                        'type': 'nueva_notificacion',
-                        'notificacion': serializer.data
-                    }
+                
+                logger.info(
+                    f"📡 Notificación {notificacion.id} enviada a {room_group_name}"
                 )
-                grupos_enviados.append(zone_group_name)
-            
-            # 6. Enviar a grupos de rol únicos (evitar duplicados)
-            roles_enviados = set()
-            for perfil in perfiles_destinatarios:
-                rol = perfil.rol
-                if rol and rol not in roles_enviados:
-                    group_name = f'rol_{rol}'
-                    async_to_sync(channel_layer.group_send)(
-                        group_name,
-                        {
-                            'type': 'nueva_notificacion',
-                            'notificacion': serializer.data
-                        }
-                    )
-                    grupos_enviados.append(group_name)
-                    roles_enviados.add(rol)
-            
-            logger.info(
-                f"📡 [Security Vision] Notificación {notificacion.id} enviada a {len(grupos_enviados)} grupos: "
-                f"{', '.join(grupos_enviados)} | Zona: {zona_evento_id} | Destinatarios: {len(perfiles_destinatarios)}"
-            )
+            else:
+                logger.warning(f"⚠️ Notificación {notificacion.id} sin perfil destinatario")
         
         except Exception as e:
-            logger.error(f"❌ Error en envío inteligente por WebSocket: {str(e)}")
+            logger.error(f"❌ Error en envío por WebSocket: {str(e)}")
     
     def _enviar_por_websocket(self, notificacion):
         """Enviar notificación por WebSocket (método legacy)"""

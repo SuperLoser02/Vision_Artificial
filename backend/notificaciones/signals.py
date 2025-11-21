@@ -1,6 +1,6 @@
 """
 Signals para el módulo de notificaciones.
-Envía notificaciones automáticamente cuando se crean.
+Envía notificaciones automáticamente cuando se crean (usado por IA).
 """
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -19,12 +19,13 @@ def enviar_notificacion_automaticamente(sender, instance, created, **kwargs):
     """
     Signal que se ejecuta después de guardar una Notificacion.
     Envía automáticamente por WebSocket y FCM si es nueva.
+    NOTA: Solo envía al perfil destinatario individual para evitar duplicados.
     """
     if not created:
         return  # Solo para notificaciones nuevas
     
     try:
-        # 1. Enviar por WebSocket
+        # 1. Enviar por WebSocket (solo al perfil individual)
         _enviar_por_websocket(instance)
         
         # 2. Enviar por FCM si el canal es 'push'
@@ -36,16 +37,15 @@ def enviar_notificacion_automaticamente(sender, instance, created, **kwargs):
 
 
 def _enviar_por_websocket(notificacion):
-    """Enviar notificación por WebSocket"""
+    """
+    Enviar notificación por WebSocket SOLO al perfil destinatario.
+    NO envía a grupos adicionales para evitar duplicados.
+    """
     try:
-        from perfil.models import Perfil
-        from camaras.models import CamaraDetalles
-        
         channel_layer = get_channel_layer()
         serializer = NotificacionSerializer(notificacion)
-        grupos_enviados = []
         
-        # 1. Enviar a perfil específico
+        # Enviar ÚNICAMENTE al perfil destinatario específico
         if notificacion.perfil:
             room_group_name = f'notificaciones_{notificacion.perfil.id}'
             async_to_sync(channel_layer.group_send)(
@@ -55,44 +55,9 @@ def _enviar_por_websocket(notificacion):
                     'notificacion': serializer.data
                 }
             )
-            grupos_enviados.append(room_group_name)
-            logger.info(f"📡 Notificación {notificacion.id} enviada a {room_group_name}")
-        
-        # 2. Obtener zona_id desde la cámara
-        zona_evento_id = None
-        if notificacion.camara_id:
-            try:
-                camara_detalle = CamaraDetalles.objects.get(id=notificacion.camara_id)
-                if camara_detalle.zona:
-                    zona_evento_id = camara_detalle.zona.id
-            except CamaraDetalles.DoesNotExist:
-                pass
-        
-        # 3. Enviar a supervisión global (jefes)
-        async_to_sync(channel_layer.group_send)(
-            'supervision_global',
-            {
-                'type': 'nueva_notificacion',
-                'notificacion': serializer.data
-            }
-        )
-        grupos_enviados.append('supervision_global')
-        
-        # 4. Enviar a grupo de zona si existe
-        if zona_evento_id:
-            zone_group_name = f'zona_{zona_evento_id}'
-            async_to_sync(channel_layer.group_send)(
-                zone_group_name,
-                {
-                    'type': 'nueva_notificacion',
-                    'notificacion': serializer.data
-                }
-            )
-            grupos_enviados.append(zone_group_name)
-        
-        logger.info(
-            f"📡 [Signal] Notificación {notificacion.id} enviada a {len(grupos_enviados)} grupos: {', '.join(grupos_enviados)}"
-        )
+            logger.info(f"📡 [Signal] Notificación {notificacion.id} enviada a {room_group_name}")
+        else:
+            logger.warning(f"⚠️ [Signal] Notificación {notificacion.id} sin perfil destinatario")
     
     except Exception as e:
         logger.error(f"❌ Error enviando por WebSocket: {str(e)}")
