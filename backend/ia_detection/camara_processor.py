@@ -134,7 +134,8 @@ class CameraProcessor:
                 try:
                     self.recorder.trigger_alert(
                         alert_type=result.get("class_name", "alerta"),
-                        confidence=result.get("confidence", 0)
+                        confidence=result.get("confidence", 0),
+                        detection_id=detection_id
                     )
                 except Exception as e:
                     print(f"⚠️ Error al activar grabación de alerta: {e}")

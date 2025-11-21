@@ -4,7 +4,7 @@ from pathlib import Path
 from collections import deque
 from threading import Lock
 import numpy as np
-from camaras.models import CamaraDetalles
+from camaras.models import CamaraDetalles, DetectionEvent
 
 
 class VideoRecorder:
@@ -41,9 +41,9 @@ class VideoRecorder:
         # Estado de grabación post-alerta
         self.recording_alert = False
         self.alert_info = None
-        self.before_segments = []  # Segmentos ANTES de la alerta
-        self.after_segments = []   # Segmentos DESPUÉS de la alerta
-        self.after_frames_recorded = 0  # Contador de frames después de alerta
+        self.before_segments = []
+        self.after_segments = []
+        self.after_frames_recorded = 0
         self.after_frames_needed = int(self.after_seconds * self.fps)
         
         # Dimensiones del video
@@ -69,7 +69,6 @@ class VideoRecorder:
                 self.current_segment_writer.write(frame)
                 self.current_segment_frames += 1
             
-            # Contar frames post-alerta
             if self.recording_alert:
                 self.after_frames_recorded += 1
                 if self.after_frames_recorded >= self.after_frames_needed:
@@ -107,12 +106,9 @@ class VideoRecorder:
         }
         
         if self.recording_alert:
-            # Durante alerta: guardar en after_segments
             self.after_segments.append(segment_info)
             print(f"📹 Segmento post-alerta guardado: {self.current_segment_path.name}")
         else:
-            # Normal: añadir al buffer circular
-            # Si el buffer está lleno, el más antiguo se expulsa automáticamente
             if len(self.segment_buffer) == self.max_segments:
                 oldest = self.segment_buffer[0]
                 if oldest['path'].exists():
@@ -123,7 +119,7 @@ class VideoRecorder:
         
         self._create_new_segment()
     
-    def trigger_alert(self, alert_type, confidence):
+    def trigger_alert(self, alert_type, confidence, detection_id=None):
         """Activa la grabación de alerta."""
         with self.lock:
             if self.recording_alert:
@@ -133,32 +129,47 @@ class VideoRecorder:
             print(f"\n🚨 TRIGGER ALERTA - Cámara {self.camera_id}")
             print(f"   Tipo: {alert_type}")
             print(f"   Confianza: {confidence:.2%}")
+            print(f"   Detection ID: {detection_id}")
             print(f"   Segmentos previos: {len(self.segment_buffer)}")
             
             self.recording_alert = True
             self.alert_info = {
                 'type': alert_type,
                 'confidence': confidence,
-                'timestamp': time.time()
+                'timestamp': time.time(),
+                'detection_id': detection_id  # Guardar el ID de detección
             }
             
-            # Copiar los paths de los segmentos del buffer (antes de la alerta)
             self.before_segments = [seg['path'] for seg in self.segment_buffer]
             self.after_segments = []
             self.after_frames_recorded = 0
             
             print(f"   Grabará próximos {self.after_seconds}s...")
     
+    def _update_detection_event(self, video_path):
+        """Actualiza el DetectionEvent con la ruta del video."""
+        detection_id = self.alert_info.get('detection_id')
+        if detection_id:
+            try:
+                detection = DetectionEvent.objects.get(id=detection_id)
+                detection.video_file = str(video_path)
+                detection.save()
+                print(f"✅ DetectionEvent {detection_id} actualizado con video: {video_path}")
+            except DetectionEvent.DoesNotExist:
+                print(f"⚠️ DetectionEvent con id {detection_id} no encontrado")
+            except Exception as e:
+                print(f"❌ Error actualizando DetectionEvent: {e}")
+        else:
+            print("⚠️ No se proporcionó detection_id, video no asociado a DetectionEvent")
+    
     def _consolidate_video(self):
         """Consolida todos los segmentos en un solo video final."""
         print(f"\n💾 Consolidando video de alerta...")
         
-        # Cerrar el segmento actual y añadirlo a after_segments
         if self.current_segment_writer:
             self.current_segment_writer.release()
             self.current_segment_writer = None
         
-        # Añadir el segmento actual (parcial) a los posteriores
         if self.current_segment_path and self.current_segment_path.exists():
             self.after_segments.append({
                 'path': self.current_segment_path,
@@ -166,15 +177,12 @@ class VideoRecorder:
                 'timestamp': time.time()
             })
         
-        # Nombre del archivo final
         timestamp_str = time.strftime('%Y%m%d_%H%M%S', 
                                       time.localtime(self.alert_info['timestamp']))
         alert_type_clean = self.alert_info['type'].replace(' ', '_')
         filename = f"cam{self.camera_id}_{alert_type_clean}_{timestamp_str}.mp4"
         output_path = self.output_dir / filename
         
-        # Usar XVID con .avi para mayor compatibilidad
-        # O H264 si está disponible
         temp_output = self.output_dir / f"temp_final_{timestamp_str}.avi"
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
         out = cv2.VideoWriter(
@@ -190,15 +198,12 @@ class VideoRecorder:
             return None
         
         total_frames = 0
-        
-        # Recopilar todos los paths de segmentos
         all_segment_paths = self.before_segments + [s['path'] for s in self.after_segments]
         
         print(f"   Before segments: {len(self.before_segments)}")
         print(f"   After segments: {len(self.after_segments)}")
         print(f"   Total: {len(all_segment_paths)} segmentos")
         
-        # Procesar cada segmento
         for i, seg_path in enumerate(all_segment_paths):
             if not seg_path.exists():
                 print(f"⚠️ Segmento no encontrado: {seg_path}")
@@ -225,18 +230,13 @@ class VideoRecorder:
             cap.release()
             print(f"   ✓ Segmento {i+1}/{len(all_segment_paths)}: {segment_frames} frames")
         
-        # IMPORTANTE: Cerrar el writer correctamente
         out.release()
-        
-        # Pequeña pausa para asegurar que el archivo se escribió
         time.sleep(0.5)
         
-        # Renombrar a .mp4 o convertir si es necesario
         if temp_output.exists():
             temp_output.rename(output_path.with_suffix('.avi'))
             output_path = output_path.with_suffix('.avi')
         
-        # Estadísticas
         if output_path.exists():
             duration = total_frames / self.fps
             file_size = output_path.stat().st_size / (1024 * 1024)
@@ -246,16 +246,14 @@ class VideoRecorder:
             print(f"   Duración: {duration:.1f}s ({duration/60:.1f} min)")
             print(f"   Frames: {total_frames}")
             print(f"   Tamaño: {file_size:.1f} MB")
+            
+            # Actualizar el DetectionEvent con la ruta del video
+            self._update_detection_event(output_path)
         else:
             print(f"❌ Error: El archivo no se creó correctamente")
         
-        # Eliminar TODOS los archivos temporales usados
         self._cleanup_all_temp_files(all_segment_paths)
-        
-        # Reset estado
         self._reset_state()
-        
-        # Recrear writer para continuar grabando
         self._create_new_segment()
         
         return str(output_path) if output_path.exists() else None
@@ -317,7 +315,6 @@ class VideoRecorder:
             if self.current_segment_writer:
                 self.current_segment_writer.release()
             
-            # Eliminar todos los temporales
             for seg in self.segment_buffer:
                 if seg['path'].exists():
                     seg['path'].unlink()
