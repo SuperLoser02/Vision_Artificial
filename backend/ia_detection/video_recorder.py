@@ -4,7 +4,8 @@ from pathlib import Path
 from collections import deque
 from threading import Lock
 import numpy as np
-from camaras.models import CamaraDetalles, DetectionEvent
+from camaras.models import CamaraDetalles
+from .models import DetectionEvent
 
 
 class VideoRecorder:
