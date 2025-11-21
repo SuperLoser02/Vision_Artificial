@@ -1,0 +1,26 @@
+version: "3.9"
+
+services:
+  relay:
+    build:
+      context: ..
+      dockerfile: relay_local/Dockerfile
+    container_name: relay_local
+    environment:
+      # URL del backend
+      # LOCAL: http://host.docker.internal:8000
+      # DigitalOcean: http://143.110.228.171
+      # AWS EC2: http://54.160.50.19:8000
+      - BACKEND_URL=http://54.160.50.19:8000
+      - RELAY_ID=relay-local-001
+      # Configuración de escaneo de red
+      - BASE_IP=192.168.0
+      - SCAN_START=2
+      - SCAN_END=255
+    ports:
+      - "7000:7000"
+    restart: unless-stopped
+    network_mode: bridge
+    extra_hosts:
+      # Permite que el relay acceda al backend en localhost
+      - "host.docker.internal:host-gateway"

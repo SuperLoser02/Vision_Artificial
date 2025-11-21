@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import AnonymousUser
@@ -156,6 +157,32 @@ class NotificacionConsumer(AsyncWebsocketConsumer):
                     'timestamp': data.get('timestamp')
                 }))
             
+            elif message_type == 'chat.message':
+                # CHAT: Mensaje de chat entrante
+                destinatario_id = data.get('destinatario_id')
+                destinatario_nombre = data.get('destinatario_nombre', 'Usuario')
+                mensaje = data.get('mensaje', '')
+                
+                if destinatario_id and mensaje:
+                    print(f"💬 Chat: {self.perfil_id} -> {destinatario_id}: {mensaje}")
+                    
+                    # Obtener nombre del remitente
+                    remitente_nombre = await self.get_perfil_nombre()
+                    
+                    # Enviar mensaje al destinatario
+                    await self.channel_layer.group_send(
+                        f'notificaciones_{destinatario_id}',
+                        {
+                            'type': 'chat_message',
+                            'remitente_id': self.perfil_id,
+                            'remitente_nombre': remitente_nombre,
+                            'mensaje': mensaje,
+                            'timestamp': datetime.now().isoformat()
+                        }
+                    )
+                    
+                    print(f"✅ Mensaje chat enviado a perfil {destinatario_id}")
+            
             elif message_type == 'marcar_leida':
                 # Marcar notificación como leída
                 notificacion_id = data.get('notificacion_id')
@@ -233,6 +260,22 @@ class NotificacionConsumer(AsyncWebsocketConsumer):
             'rol': event.get('rol', 'desconocido')
         }))
     
+    async def chat_message(self, event):
+        """Enviar mensaje de chat al WebSocket"""
+        print(f"📤 Enviando mensaje de chat al WebSocket del perfil {self.perfil_id}")
+        print(f"   Remitente: {event['remitente_nombre']} (ID: {event['remitente_id']})")
+        print(f"   Mensaje: {event['mensaje']}")
+        
+        await self.send(text_data=json.dumps({
+            'type': 'chat.message',
+            'remitente_id': event['remitente_id'],
+            'remitente_nombre': event['remitente_nombre'],
+            'mensaje': event['mensaje'],
+            'timestamp': event['timestamp']
+        }))
+        
+        print(f"✅ Mensaje enviado exitosamente al perfil {self.perfil_id}")
+    
     # Métodos auxiliares para base de datos
     @database_sync_to_async
     def get_user_from_token(self):
@@ -267,6 +310,16 @@ class NotificacionConsumer(AsyncWebsocketConsumer):
             }
         except Perfil.DoesNotExist:
             return None
+    
+    @database_sync_to_async
+    def get_perfil_nombre(self):
+        """Obtener nombre del perfil actual"""
+        from perfil.models import Perfil
+        try:
+            perfil = Perfil.objects.get(id=self.perfil_id)
+            return perfil.nombre
+        except Perfil.DoesNotExist:
+            return f'Usuario {self.perfil_id}'
     
     @database_sync_to_async
     def get_notificaciones_no_leidas(self):

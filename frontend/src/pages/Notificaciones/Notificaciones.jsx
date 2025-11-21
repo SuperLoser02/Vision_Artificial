@@ -3,6 +3,7 @@ import api, { obtenerPerfiles, obtenerZonas } from "../../services/Api";
 import { useNavigate } from "react-router-dom";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import chatService from '../../services/ChatService';
 
 const nivelesColores = [
   'from-red-500 to-red-600',
@@ -55,93 +56,42 @@ const Notificaciones = () => {
   const [formError, setFormError] = useState("");
   const [formLoading, setFormLoading] = useState(false);
   const navigate = useNavigate();
-  const wsRef = useRef(null);
-  const reconnectTimeoutRef = useRef(null);
 
   // Obtener perfil actual del localStorage
   const perfilActual = JSON.parse(localStorage.getItem("perfilActual"));
   const perfilId = perfilActual?.id;
-  const token = localStorage.getItem("token");
+  const authToken = localStorage.getItem("authToken");
 
   useEffect(() => {
     cargarNotificaciones();
     cargarPerfiles();
     cargarZonas();
     
-    // Conectar WebSocket
-    if (perfilId && token) {
-      conectarWebSocket();
-    }
+    // El WebSocket ya está conectado desde Dashboard
+    console.log('📱 Notificaciones.jsx montado, WebSocket ya conectado desde Dashboard');
+
+    // Suscribirse a eventos de notificaciones
+    const handleNuevaNotificacion = (data) => {
+      handleNuevaNotificacionRecibida(data);
+    };
+
+    const handleNotificacionLeida = (data) => {
+      handleNotificacionLeidaRecibida(data);
+    };
+
+    chatService.on('nueva_notificacion', handleNuevaNotificacion);
+    chatService.on('notificacion_leida', handleNotificacionLeida);
 
     return () => {
-      // Limpiar al desmontar
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
+      // Desuscribirse al desmontar
+      chatService.off('nueva_notificacion', handleNuevaNotificacion);
+      chatService.off('notificacion_leida', handleNotificacionLeida);
+      // No desconectar el WebSocket porque Chat.jsx también lo usa
     };
     // eslint-disable-next-line
   }, [filtros]);
 
-  const conectarWebSocket = () => {
-    try {
-      // Usar variable de entorno o detectar host automáticamente
-      const wsHost = import.meta.env.VITE_WS_HOST || window.location.hostname;
-      const wsPort = import.meta.env.VITE_WS_PORT || '8000';
-      const wsUrl = `ws://${wsHost}:${wsPort}/ws/notificaciones/${perfilId}/?token=${token}`;
-      console.log('🔌 Conectando a WebSocket:', wsUrl);
-      
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        console.log('✅ WebSocket conectado');
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          console.log('📩 Mensaje WebSocket recibido:', data);
-
-          switch (data.type) {
-            case 'notificacion_leida':
-              // Guardia leyó una notificación
-              handleNotificacionLeida(data);
-              break;
-
-            case 'nueva_notificacion':
-              // Nueva notificación creada
-              handleNuevaNotificacion(data);
-              break;
-
-            default:
-              break;
-          }
-        } catch (error) {
-          console.error('❌ Error procesando mensaje WebSocket:', error);
-        }
-      };
-
-      ws.onerror = (error) => {
-        console.error('❌ Error en WebSocket:', error);
-      };
-
-      ws.onclose = () => {
-        console.log('🔌 WebSocket desconectado, reconectando en 3s...');
-        wsRef.current = null;
-        // Reconectar después de 3 segundos
-        reconnectTimeoutRef.current = setTimeout(() => {
-          conectarWebSocket();
-        }, 3000);
-      };
-    } catch (error) {
-      console.error('❌ Error al conectar WebSocket:', error);
-    }
-  };
-
-  const handleNotificacionLeida = (data) => {
+  const handleNotificacionLeidaRecibida = (data) => {
     const { notificacion_id, perfil_nombre, fecha_lectura } = data;
     
     // Actualizar la notificación en la lista
@@ -179,7 +129,7 @@ const Notificaciones = () => {
     }
   };
 
-  const handleNuevaNotificacion = (data) => {
+  const handleNuevaNotificacionRecibida = (data) => {
     const { notificacion } = data;
     
     // Agregar al inicio de la lista

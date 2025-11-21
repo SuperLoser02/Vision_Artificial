@@ -1,0 +1,11 @@
+# Relay Local - Dependencias (solo escáner de red)
+
+# FastAPI
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+
+# HTTP Client
+requests==2.31.0
+
+# Utilidades
+python-dotenv==1.1.0

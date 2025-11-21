@@ -51,7 +51,7 @@ INSTALLED_APPS = [
     'suscripcion',
     'reporte',
     'camaras',
-    'notificaciones.apps.NotificacionesConfig',  # Con config para signals
+    'notificaciones',
     'ia_detection',
     'zonas',
 ]

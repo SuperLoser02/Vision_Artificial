@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { logout } from "../../services/Api";
 import MiPerfil from "../Perfil/MiPerfil";
@@ -8,17 +8,44 @@ import Metricas from "../Metricas/Metricas";
 import Historial from "../Historial/Historial";
 import Zonas from "../Zonas/Zonas";
 import Camaras from "../Camaras/Camaras";
+import Chat from "../Chat/Chat";
+import chatService from "../../services/ChatService";
 
 const Dashboard = () => {
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [vistaActual, setVistaActual] = useState('camaras');
     const navigate = useNavigate();
 
+    // Conectar WebSocket UNA SOLA VEZ cuando se monta el Dashboard
+    useEffect(() => {
+        const perfilActual = JSON.parse(localStorage.getItem('perfilActual'));
+        const perfilId = perfilActual?.id;
+        const authToken = localStorage.getItem('authToken');
+
+        if (perfilId && authToken) {
+            // Desconectar cualquier conexión previa para evitar duplicados
+            if (chatService.isWebSocketConnected()) {
+                console.log('⚠️ Dashboard: Ya existe una conexión WebSocket, desconectando primero');
+                chatService.disconnect();
+            }
+            
+            console.log('🔌 Dashboard: Iniciando conexión WebSocket única para perfil', perfilId);
+            chatService.connect(perfilId, authToken);
+        }
+
+        // NO desconectar en cleanup - dejar que el WebSocket persista
+        // Solo se desconecta cuando el usuario hace logout real
+    }, []);
+
     const toggleSidebar = () => {
         setSidebarOpen(!sidebarOpen);
     };
 
     const handleCerrarSesion = () => {
+        // Desconectar WebSocket al cerrar sesión
+        console.log('🚪 Cerrando sesión, desconectando WebSocket');
+        chatService.disconnect();
+        
         // Solo cerrar sesión del perfil (empleado), no de la empresa
         localStorage.removeItem('perfilToken');
         localStorage.removeItem('perfilActual');
@@ -38,6 +65,8 @@ const Dashboard = () => {
                 return <Zonas />;
             case 'notificaciones':
                 return <Notificaciones />;
+            case 'chat':
+                return <Chat />;
             case 'metricas':
                 return <Metricas />;
             case 'historial':
@@ -98,6 +127,14 @@ const Dashboard = () => {
                     >
                         <span className="text-2xl">🔔</span>
                         {sidebarOpen && <span className="font-medium">Notificaciones</span>}
+                    </li>
+                    <li
+                        onClick={() => setVistaActual('chat')}
+                        className={`p-4 hover:bg-blue-700 cursor-pointer flex items-center gap-3 transition-colors duration-200 ${vistaActual === 'chat' ? 'bg-blue-700' : ''}`}
+                        title="Chat"
+                    >
+                        <span className="text-2xl">💬</span>
+                        {sidebarOpen && <span className="font-medium">Chat</span>}
                     </li>
                     <li
                         onClick={() => setVistaActual('metricas')}
