@@ -31,16 +31,37 @@ const Historial = () => {
         try {
             setLoading(true);
             setError(null);
-            const response = await api.get('ia_detection/detection-events/all_events_by_user/');
-            console.log('Eventos cargados:', response.data);
+            
+            console.log('🔍 Cargando eventos de detección de IA...');
+            
+            // Endpoint correcto del backend - con guión bajo
+            const response = await api.get('ia_detection/detection_events/all_events_by_user/');
+            console.log('✅ Eventos recibidos:', response.data);
+            console.log('📊 Total de eventos:', response.data.length);
             
             // Asegurarse de que sea un array
             const eventosData = Array.isArray(response.data) ? response.data : [];
+            
             setEventos(eventosData);
             setEventosFiltrados(eventosData);
         } catch (err) {
-            console.error('Error al cargar eventos:', err);
-            setError('No se pudieron cargar los eventos. Verifica tu conexión o que el backend esté ejecutándose.');
+            console.error('❌ Error al cargar eventos:', err);
+            console.error('Status:', err.status);
+            console.error('Detalle:', err.detail || err.error);
+            
+            let mensajeError = 'No se pudieron cargar los eventos de detección.';
+            
+            if (err.status === 401) {
+                mensajeError = 'Tu sesión ha expirado. Por favor inicia sesión nuevamente.';
+            } else if (err.status === 404) {
+                mensajeError = 'El endpoint de eventos no fue encontrado. URL intentada: ia_detection/detection_events/all_events_by_user/';
+            } else if (err.status === 500) {
+                mensajeError = 'Error interno del servidor. Revisa los logs del backend.';
+            } else if (!err.status) {
+                mensajeError = 'No se pudo conectar con el backend. Verifica que Docker esté ejecutándose.';
+            }
+            
+            setError(mensajeError);
             setEventos([]);
             setEventosFiltrados([]);
         } finally {
@@ -116,7 +137,7 @@ const Historial = () => {
     const descargarVideo = async (eventoId, nombreArchivo) => {
         try {
             const response = await api.get(
-                `ia_detection/detection-events/${eventoId}/download_video/`,
+                `ia_detection/detection_events/${eventoId}/download_video/`,
                 { responseType: 'blob' }
             );
             
@@ -166,7 +187,7 @@ const Historial = () => {
         <div className="w-full min-h-full">
             <div className="mb-6">
                 <h1 className="text-3xl font-bold text-gray-800 mb-2">Historial de Eventos</h1>
-                <p className="text-gray-600">Registro completo de eventos de detección de agresión</p>
+                <p className="text-gray-600">Registro completo de eventos de detección de agresión detectados por IA</p>
             </div>
 
             {error && (
@@ -292,7 +313,7 @@ const Historial = () => {
                                 <tr>
                                     <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
                                         {eventos.length === 0 
-                                            ? 'Aún no se han detectado eventos de agresión'
+                                            ? 'Aún no se han detectado eventos de agresión por la IA'
                                             : 'No se encontraron eventos con los filtros aplicados'
                                         }
                                     </td>
@@ -307,7 +328,13 @@ const Historial = () => {
                                             {formatearFecha(evento.timeStamp)}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                            <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                                evento.tipo_alerta === 'Violence' 
+                                                    ? 'bg-red-100 text-red-800'
+                                                    : evento.tipo_alerta === 'Weaponized'
+                                                    ? 'bg-orange-100 text-orange-800'
+                                                    : 'bg-gray-100 text-gray-800'
+                                            }`}>
                                                 {evento.tipo_alerta}
                                             </span>
                                         </td>

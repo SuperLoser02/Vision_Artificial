@@ -12,8 +12,9 @@ const nivelesColores = [
 ];
 const niveles = ['rojo', 'amarillo', 'verde'];
 const tipos = [
-  { value: "Violence", label: "Violencia" },
-  { value: "Weaponized", label: "Armas" }
+  { value: "violencia", label: "Violencia" },
+  { value: "arma", label: "Armas" },
+  { value: "otro", label: "Otro" }
 ];
 const canales = ["push", "sms", "email", "dashboard"];
 
@@ -160,12 +161,30 @@ const Notificaciones = () => {
     setError("");
     try {
       let params = {};
-      if (perfilId) params.perfil_id = perfilId;
+      // Solo filtrar por perfil si existe y estamos en vista de guardia
+      // Si estamos como admin/empresa, NO filtrar por perfil para ver TODAS las notificaciones
+      const perfilActual = JSON.parse(localStorage.getItem("perfilActual"));
+      const perfilId = perfilActual?.id;
+      
+      // SOLO aplicar filtro de perfil si explícitamente está en el filtro
+      // No aplicar por defecto para que admin vea todas
+      if (filtros.perfil_id) {
+        params.perfil_id = filtros.perfil_id;
+      }
+      // Si hay perfilId pero estamos viendo como admin, NO filtrar
+      // (el admin debería ver todas las notificaciones)
+      
+      // Aplicar otros filtros
       Object.entries(filtros).forEach(([k, v]) => {
-        if (v) params[k] = v;
+        if (v && k !== 'perfil_id') params[k] = v;
       });
+      
       console.log('Cargando notificaciones con params:', params);
+      console.log('Usuario actual:', localStorage.getItem('authToken') ? 'Admin/Empresa' : 'Sin sesión');
+      console.log('Perfil actual:', perfilActual);
+      
       const res = await api.get("notificaciones/", { params });
+      console.log('Respuesta completa del servidor:', res);
       console.log('Notificaciones recibidas:', res.data);
       console.log('Tipo de datos:', typeof res.data, 'Es array:', Array.isArray(res.data));
       
