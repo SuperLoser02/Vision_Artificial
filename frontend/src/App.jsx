@@ -13,6 +13,7 @@ import Categorias from "./pages/Categorias/Categorias";
 import Zonas from "./pages/Zonas/Zonas";
 import Notificaciones from "./pages/Notificaciones/Notificaciones";
 import Metricas from "./pages/Metricas/Metricas";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 import "./App.css";
 
@@ -21,22 +22,60 @@ function App() {
   return (
     <Router>
       <Routes>
+        {/* Rutas públicas - No requieren autenticación */}
         <Route path="/" element={<HomePage />} />
-        <Route path="/perfil" element={<Perfil />} />
-        <Route path="/perfil-registro" element={<PerfilRegistro />} />
-        <Route path="/perfil-editar/:id" element={<PerfilEditar />} />
-        <Route path="/mi-perfil" element={<MiPerfil />} />
+        <Route path="/login" element={<Login/>} />
         <Route path="/registro" element={<Registro />} />
         <Route path="/suscripcion" element={<Suscripcion />} />
-        <Route path="/categorias" element={<Categorias />} />
-        <Route path="/zonas" element={<Zonas />} />
-        <Route path="/notificaciones" element={<Notificaciones />} />
-        <Route path="/metricas" element={<Metricas />} />
 
-        <Route path="/dashboard" element={<Dashboard />} />
-
-        <Route path="/login" element={<Login/>} />
-
+        {/* Rutas protegidas - Solo requieren autenticación de empresa */}
+        <Route path="/perfil" element={
+          <ProtectedRoute>
+            <Perfil />
+          </ProtectedRoute>
+        } />
+        <Route path="/perfil-registro" element={
+          <ProtectedRoute>
+            <PerfilRegistro />
+          </ProtectedRoute>
+        } />
+        <Route path="/perfil-editar/:id" element={
+          <ProtectedRoute>
+            <PerfilEditar />
+          </ProtectedRoute>
+        } />
+        
+        {/* Rutas protegidas - Requieren autenticación de empresa Y perfil activo */}
+        <Route path="/dashboard" element={
+          <ProtectedRoute requireProfile={true}>
+            <Dashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/mi-perfil" element={
+          <ProtectedRoute requireProfile={true}>
+            <MiPerfil />
+          </ProtectedRoute>
+        } />
+        <Route path="/categorias" element={
+          <ProtectedRoute requireProfile={true}>
+            <Categorias />
+          </ProtectedRoute>
+        } />
+        <Route path="/zonas" element={
+          <ProtectedRoute requireProfile={true}>
+            <Zonas />
+          </ProtectedRoute>
+        } />
+        <Route path="/notificaciones" element={
+          <ProtectedRoute requireProfile={true}>
+            <Notificaciones />
+          </ProtectedRoute>
+        } />
+        <Route path="/metricas" element={
+          <ProtectedRoute requireProfile={true}>
+            <Metricas />
+          </ProtectedRoute>
+        } />
       </Routes>
     </Router>
   );
