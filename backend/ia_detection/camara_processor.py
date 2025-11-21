@@ -18,7 +18,9 @@ class CameraProcessor:
         self.camera_type = camera_type
         self.camera_ip = camera_ip
         self.recorder = None
-        
+        self.start_time = None
+        self.warmup_seconds = 30  # tiempo de adaptación
+
         self.cooldown_active = False
         self.cooldown_until = 0
         self.cooldown_seconds = 60 # 1 minuto
@@ -58,6 +60,7 @@ class CameraProcessor:
         print(f"Conectado a {self.stream_url}")
         self.recorder = VideoRecorder(self.camera_id)
         self.running = True
+        self.start_time = time.time()
         self.thread = Thread(target=self._process_loop, daemon=True)
         self.thread.start()
     
@@ -99,7 +102,12 @@ class CameraProcessor:
             # Esperar hasta tener suficientes frames
             if len(self.frame_buffer) < self.max_buffer_size:
                 continue
-            
+            # 🔥 NUEVO: Saltar detecciones durante warmup
+            if time.time() - self.start_time < self.warmup_seconds:
+                # No detectar durante primeros X segundos
+                # pero SÍ seguir grabando y acumulando frames
+                continue
+
             result = self._detect()
 
             # Protección para evitar crashes
