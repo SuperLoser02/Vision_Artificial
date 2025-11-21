@@ -40,7 +40,6 @@ const PerfilCRUD = () => {
             const token = localStorage.getItem('authToken');
             
             if (!token) {
-                alert('Debes iniciar sesión como administrador primero');
                 navigate('/login');
                 return;
             }
@@ -49,11 +48,9 @@ const PerfilCRUD = () => {
             setPerfiles(data);
             setError("");
         } catch (err) {
-            console.error('Error al cargar perfiles:', err);
             
             // Manejar específicamente error 401 (no autenticado)
             if (err.status === 401) {
-                alert('Tu sesión ha expirado. Por favor inicia sesión nuevamente.');
                 localStorage.removeItem('authToken');
                 localStorage.removeItem('user');
                 navigate('/login');
@@ -146,10 +143,8 @@ const PerfilCRUD = () => {
                 fecha_nacimiento: formData.fecha_nacimiento || ''
             };
 
-            console.log('Enviando datos del perfil:', dataToSend);
             
             const response = await crearPerfil(dataToSend);
-            console.log('Respuesta del servidor:', response);
             
             setContraseñaTemporal(response.contraseña_temporal);
             await cargarPerfiles();
@@ -172,7 +167,6 @@ const PerfilCRUD = () => {
             setShowSuccessModal(true);
             setShowModal(false);
         } catch (err) {
-            console.error('Error completo al crear perfil:', err);
             
             // Mostrar mensaje de error más específico
             let errorMessage = 'Error al crear el perfil';

@@ -44,16 +44,10 @@ api.interceptors.request.use(
         // Solo agregar token si NO es un endpoint público
         if (!isPublicEndpoint) {
             const token = localStorage.getItem('authToken');
-            console.log('Token enviado:', token ? `${token.substring(0, 20)}...` : 'NO HAY TOKEN');
-            console.log('URL:', config.url);
-            console.log('Headers:', config.headers);
             
             if (token) {
                 config.headers.Authorization = `Token ${token}`;
             }
-        } else {
-            console.log('Endpoint público detectado:', config.url);
-            console.log('No se enviará token de autenticación');
         }
         
         return config;
@@ -74,13 +68,10 @@ api.interceptors.response.use(
             
             // Si es error 401, limpiar tokens inválidos
             if (status === 401) {
-                console.warn('Error 401: Token inválido o sesión expirada');
-                // No limpiar aquí, dejar que el componente maneje el redirect
             }
             
             // Si es error 500, agregar más contexto
             if (status === 500) {
-                console.error('Error 500 del servidor:', errorData);
             }
             
             // Crear un objeto de error más amigable

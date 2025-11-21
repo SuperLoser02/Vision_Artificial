@@ -16,11 +16,9 @@ const Login = () => {
 
         try {
             const response = await loginAdmin(username, password);
-            console.log('Login exitoso:', response);
             // Redirigir a selección de perfil después del login exitoso
             navigate('/perfil');
         } catch (err) {
-            console.error('Error en login:', err);
             setError(err.error || err.detail || 'Error al iniciar sesión');
         } finally {
             setLoading(false);
@@ -32,12 +30,6 @@ const Login = () => {
             <form onSubmit={handleLogin} className="bg-white p-8 rounded-lg shadow-lg w-full max-w-2xl mx-4">
                 <h2 className="text-3xl font-extrabold mb-6 text-center text-gray-800">Iniciar Sesión</h2>
                 
-                {/* Información sobre credenciales por defecto */}
-                <div className="mb-4 p-3 bg-blue-50 border-l-4 border-blue-500 text-blue-700 text-sm">
-                    <p className="font-semibold">Credenciales por defecto</p>
-                    <p className="mt-1">Usuario: <code className="bg-blue-100 px-1 rounded">admin</code></p>
-                    <p>Contraseña: <code className="bg-blue-100 px-1 rounded">admin123</code></p>
-                </div>
 
                 {error && (
                     <div className="mb-4 p-3 bg-red-100 border-l-4 border-red-500 text-red-700 rounded">

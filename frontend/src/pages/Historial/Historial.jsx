@@ -32,12 +32,12 @@ const Historial = () => {
             setLoading(true);
             setError(null);
             
-            console.log('🔍 Cargando eventos de detección de IA...');
+            // console.log('🔍 Cargando eventos de detección de IA...');
             
             // Endpoint correcto del backend - con guión bajo
             const response = await api.get('ia_detection/detection_events/all_events_by_user/');
-            console.log('✅ Eventos recibidos:', response.data);
-            console.log('📊 Total de eventos:', response.data.length);
+            // console.log('✅ Eventos recibidos:', response.data);
+            // console.log('📊 Total de eventos:', response.data.length);
             
             // Asegurarse de que sea un array
             const eventosData = Array.isArray(response.data) ? response.data : [];
@@ -45,9 +45,9 @@ const Historial = () => {
             setEventos(eventosData);
             setEventosFiltrados(eventosData);
         } catch (err) {
-            console.error('❌ Error al cargar eventos:', err);
-            console.error('Status:', err.status);
-            console.error('Detalle:', err.detail || err.error);
+            // console.error('❌ Error al cargar eventos:', err);
+            // console.error('Status:', err.status);
+            // console.error('Detalle:', err.detail || err.error);
             
             let mensajeError = 'No se pudieron cargar los eventos de detección.';
             
@@ -150,8 +150,8 @@ const Historial = () => {
             link.remove();
             window.URL.revokeObjectURL(url);
         } catch (err) {
-            console.error('Error al descargar video:', err);
-            alert('No se pudo descargar el video. Puede que no exista o no esté disponible.');
+            // console.error('Error al descargar video:', err);
+            // alert('No se pudo descargar el video. Puede que no exista o no esté disponible.');
         }
     };
 

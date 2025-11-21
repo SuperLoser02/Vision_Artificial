@@ -26,7 +26,6 @@ const Zonas = () => {
             const token = localStorage.getItem('authToken');
             
             if (!token) {
-                alert('Debes iniciar sesión como administrador primero');
                 navigate('/login');
                 return;
             }
@@ -35,10 +34,8 @@ const Zonas = () => {
             setZonas(data);
             setError("");
         } catch (err) {
-            console.error('Error al cargar zonas:', err);
             
             if (err.status === 401) {
-                alert('Tu sesión ha expirado. Por favor inicia sesión nuevamente.');
                 localStorage.removeItem('authToken');
                 localStorage.removeItem('user');
                 navigate('/login');
@@ -93,17 +90,14 @@ const Zonas = () => {
 
             if (modalMode === "crear") {
                 await crearZona(formData);
-                alert('Zona creada exitosamente');
             } else {
                 await actualizarZona(zonaSeleccionada.id, formData);
-                alert('Zona actualizada exitosamente');
             }
 
             await cargarZonas();
             setShowModal(false);
             setFormData({ nombre: "", descripcion: "", activa: true });
         } catch (err) {
-            console.error('Error al guardar zona:', err);
             setError(err.error || err.detail || 'Error al guardar la zona');
         } finally {
             setLoading(false);
@@ -118,11 +112,9 @@ const Zonas = () => {
         try {
             setLoading(true);
             await eliminarZona(zona.id);
-            alert('Zona eliminada exitosamente');
             await cargarZonas();
         } catch (err) {
-            console.error('Error al eliminar zona:', err);
-            alert(err.error || err.detail || 'Error al eliminar la zona');
+            setError(err.error || err.detail || 'Error al eliminar la zona');
         } finally {
             setLoading(false);
         }

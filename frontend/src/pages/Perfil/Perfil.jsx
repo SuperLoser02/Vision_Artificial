@@ -18,9 +18,8 @@ const Perfil = () => {
         try {
             setLoading(true);
             const token = localStorage.getItem('authToken');
-            
+
             if (!token) {
-                alert('Debes iniciar sesión como administrador primero');
                 navigate('/login');
                 return;
             }
@@ -29,12 +28,10 @@ const Perfil = () => {
             setPerfiles(data);
             setError("");
         } catch (err) {
-            console.error('Error al cargar perfiles:', err);
             setError(err.detail || err.error || 'Error al cargar los perfiles');
-            
+
             // Si no está autenticado, redirigir al login
             if (err.detail === "Las credenciales de autenticación no se proveyeron." || err.status === 401) {
-                alert('Sesión expirada. Por favor inicia sesión nuevamente.');
                 navigate('/login');
             }
         } finally {
@@ -57,20 +54,17 @@ const Perfil = () => {
         try {
             setLoading(true);
             setError("");
-            
+
             // El backend espera el ID del perfil y la contraseña
             const response = await iniciarSesionPerfil(selectedProfile.id, enteredPassword);
-            
+
             // Guardar ambos tokens: el token DRF y el session_token
             localStorage.setItem('authToken', response.token); // Token DRF para autenticación API
             localStorage.setItem('perfilToken', response.session_token); // Token de sesión personalizado
             localStorage.setItem('perfilActual', JSON.stringify(selectedProfile));
-            
-            alert(`¡Bienvenido, ${selectedProfile.nombre} ${selectedProfile.apellido}!`);
-            
+
             navigate('/dashboard');
         } catch (err) {
-            console.error('Error al iniciar sesión:', err);
             setError(err.detail || err.error || 'Contraseña incorrecta');
         } finally {
             setLoading(false);
@@ -137,7 +131,7 @@ const Perfil = () => {
                 <>
                     <h1 className="text-4xl font-bold mb-2">Selecciona tu perfil</h1>
                     <p className="text-lg mb-8 text-white text-opacity-90">Trabajadores - Inicio de sesión</p>
-                    
+
                     {perfiles.length === 0 ? (
                         <div className="text-center bg-white bg-opacity-10 backdrop-blur-md p-8 rounded-lg">
                             <p className="text-xl mb-4">No hay perfiles registrados</p>
@@ -167,9 +161,6 @@ const Perfil = () => {
                                         <p className="mt-4 text-lg font-medium text-center">
                                             {profile.nombre} {profile.apellido}
                                         </p>
-                                        {profile.ci && (
-                                            <p className="text-sm text-gray-200">CI: {profile.ci}</p>
-                                        )}
                                         {profile.rol && (
                                             <p className="text-xs text-white bg-white bg-opacity-20 px-2 py-1 rounded mt-1">
                                                 {profile.rol === 'jefe_seguridad' ? '👔 Jefe' : '🛡️ Guardia'}
@@ -178,14 +169,14 @@ const Perfil = () => {
                                     </div>
                                 ))}
                             </div>
-                            
+
                             <button
                                 onClick={() => navigate('/perfil-registro')}
                                 className="bg-white text-blue-600 font-semibold py-2 px-6 rounded-lg shadow-lg hover:bg-gray-100 mb-2"
                             >
                                 + Gestionar Perfiles
                             </button>
-                            
+
                             <button
                                 onClick={() => navigate('/login')}
                                 className="text-white text-sm hover:text-gray-200 underline"
@@ -200,12 +191,11 @@ const Perfil = () => {
                     <div className={`w-32 h-32 rounded-full border-4 border-white shadow-lg flex items-center justify-center text-4xl font-bold mb-4 ${getRandomColor(selectedProfile.id)}`}>
                         {getInitials(selectedProfile.nombre, selectedProfile.apellido)}
                     </div>
-                    
+
                     <h2 className="text-2xl font-bold mb-2">
                         {selectedProfile.nombre} {selectedProfile.apellido}
                     </h2>
-                    <p className="text-sm text-white text-opacity-80 mb-6">CI: {selectedProfile.ci}</p>
-                    
+
                     <div className="w-full">
                         <label className="block text-sm font-medium mb-2">
                             Introduce tu contraseña
@@ -220,20 +210,20 @@ const Perfil = () => {
                             disabled={loading}
                             autoFocus
                         />
-                        
+
                         {error && (
                             <p className="text-red-300 bg-red-600 bg-opacity-30 mt-3 p-2 rounded text-center text-sm">
                                 {error}
                             </p>
                         )}
-                        
+
                         <div className="bg-blue-50 bg-opacity-20 p-3 rounded mt-3 mb-4">
                             <p className="text-xs text-white text-opacity-90">
-                                <strong>Primera vez:</strong> Usa la contraseña temporal que te dio el administrador.<br/>
+                                <strong>Primera vez:</strong> Usa la contraseña temporal que te dio el administrador.<br />
                                 Formato: <code className="bg-white bg-opacity-20 px-1 rounded">INICIALES.CI</code>
                             </p>
                         </div>
-                        
+
                         <div className="flex gap-2 mt-6">
                             <button
                                 onClick={handlePasswordSubmit}
@@ -242,7 +232,7 @@ const Perfil = () => {
                             >
                                 {loading ? 'Verificando...' : 'Confirmar'}
                             </button>
-                            
+
                             <button
                                 onClick={() => {
                                     setSelectedProfile(null);

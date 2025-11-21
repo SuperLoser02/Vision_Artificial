@@ -34,7 +34,6 @@ const PerfilEditar = () => {
             const token = localStorage.getItem('authToken');
             
             if (!token) {
-                alert('Debes iniciar sesión como administrador primero');
                 navigate('/login');
                 return;
             }
@@ -67,10 +66,8 @@ const PerfilEditar = () => {
 
             setError("");
         } catch (err) {
-            console.error('Error al cargar datos:', err);
             
             if (err.status === 401) {
-                alert('Tu sesión ha expirado. Por favor inicia sesión nuevamente.');
                 localStorage.removeItem('authToken');
                 localStorage.removeItem('user');
                 navigate('/login');
@@ -131,10 +128,8 @@ const PerfilEditar = () => {
             }
 
             await actualizarPerfil(id, updateData);
-            alert('Perfil actualizado exitosamente');
             navigate('/perfil-registro');
         } catch (err) {
-            console.error('Error al actualizar perfil:', err);
             setError(err.error || err.detail || 'Error al actualizar el perfil');
         } finally {
             setSaving(false);

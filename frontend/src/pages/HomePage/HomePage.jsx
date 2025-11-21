@@ -56,42 +56,6 @@ const HomePage = () => {
                         </p>
                     </div>
                 </div>
-
-                {/* Características principales */}
-                <div className="mt-12 grid md:grid-cols-4 gap-4 text-sm">
-                    <div className="bg-white bg-opacity-5 p-4 rounded-lg">
-                        <div className="text-3xl mb-2">&#128249;</div>
-                        <h3 className="font-semibold mb-1">Monitoreo 24/7</h3>
-                        <p className="text-xs text-white text-opacity-80">Sistema de cámaras en tiempo real</p>
-                        <button
-                            onClick={() => navigate('/dashboard')}
-                            className="mt-2 w-full bg-blue-600 text-white py-1 rounded hover:bg-blue-700 text-xs"
-                        >Ir al Dashboard</button>
-                    </div>
-                    <div className="bg-white bg-opacity-5 p-4 rounded-lg">
-                        <div className="text-3xl mb-2">&#129302;</div>
-                        <h3 className="font-semibold mb-1">IA Avanzada</h3>
-                        <p className="text-xs text-white text-opacity-80">Detección inteligente de eventos</p>
-                        <button
-                            onClick={() => navigate('/categorias')}
-                            className="mt-2 w-full bg-purple-600 text-white py-1 rounded hover:bg-purple-700 text-xs"
-                        >Ir a Categorías</button>
-                    </div>
-                    <div className="bg-white bg-opacity-5 p-4 rounded-lg">
-                        <div className="text-3xl mb-2">&#128202;</div>
-                        <h3 className="font-semibold mb-1">Reportes</h3>
-                        <p className="text-xs text-white text-opacity-80">Análisis y estadísticas completas</p>
-                    </div>
-                    <div className="bg-white bg-opacity-5 p-4 rounded-lg">
-                        <div className="text-3xl mb-2">&#128276;</div>
-                        <h3 className="font-semibold mb-1">Notificaciones</h3>
-                        <p className="text-xs text-white text-opacity-80">Alertas y mensajes de seguridad</p>
-                        <button
-                            onClick={() => navigate('/notificaciones')}
-                            className="mt-2 w-full bg-red-600 text-white py-1 rounded hover:bg-red-700 text-xs"
-                        >Ir a Notificaciones</button>
-                    </div>
-                </div>
             </main>
         </div>
     );

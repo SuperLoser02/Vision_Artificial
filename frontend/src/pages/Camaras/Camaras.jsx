@@ -71,7 +71,6 @@ const Camaras = () => {
             const zonasActivas = data.filter(zona => zona.activa);
             setZonas(zonasActivas);
         } catch (error) {
-            console.error('Error al cargar zonas:', error);
             setZonas([]);
         }
     };
@@ -88,7 +87,6 @@ const Camaras = () => {
         try {
             const res = await api.post('registrar/', formData);
             if (res.data && res.data.camara) {
-                alert("Cámara registrada exitosamente");
                 const resPerfil = await api.get('camaras/por_perfil/');
                 setCamaras(resPerfil.data);
                 const estadosTemp = {};
@@ -103,10 +101,10 @@ const Camaras = () => {
                 setShowModal(false);
                 setFormData({ ip: '', puerto: '8080', protocolo: 'http', zona: '' });
             } else {
-                alert(`Error: ${res.data.error || 'No se pudo registrar la cámara'}`);
+                setError(res.data.error || 'No se pudo registrar la cámara');
             }
         } catch (error) {
-            alert("Error al registrar la cámara.");
+            setError("Error al registrar la cámara.");
         } finally {
             setLoading(false);
         }
@@ -138,7 +136,7 @@ const Camaras = () => {
             setCamaras(resPerfil.data);
             setEditId(null);
         } catch (error) {
-            alert("Error al editar la cámara");
+            setError("Error al editar la cámara");
         } finally {
             setLoading(false);
         }
@@ -156,9 +154,8 @@ const Camaras = () => {
         try {
             await api.get('ia_detection/start_detection/');
             setDetectionActive(true);
-            alert('Detección de IA iniciada en todas las cámaras');
         } catch (error) {
-            alert('Error al iniciar la detección de IA');
+            setError('Error al iniciar la detección de IA');
         } finally {
             setCheckingDetection(false);
         }
@@ -169,9 +166,8 @@ const Camaras = () => {
         try {
             await api.get('ia_detection/stop_detection/');
             setDetectionActive(false);
-            alert('Detección de IA detenida');
         } catch (error) {
-            alert('Error al detener la detección de IA');
+            setError('Error al detener la detección de IA');
         } finally {
             setCheckingDetection(false);
         }
@@ -182,7 +178,6 @@ const Camaras = () => {
             const res = await api.get('ia_detection/active_detections/');
             setDetectionActive(res.data.active_cameras && res.data.active_cameras.length > 0);
         } catch (error) {
-            console.error('Error al verificar detección activa:', error);
         }
     };
 
@@ -193,7 +188,6 @@ const Camaras = () => {
         setLoading(true);
         try {
             await api.delete(`camaras/${camaraId}/`);
-            alert('Cámara eliminada exitosamente');
             const resPerfil = await api.get('camaras/por_perfil/');
             setCamaras(resPerfil.data);
             const estadosTemp = {};
@@ -206,7 +200,7 @@ const Camaras = () => {
             }
             setEstados(estadosTemp);
         } catch (error) {
-            alert('Error al eliminar la cámara');
+            setError('Error al eliminar la cámara');
         } finally {
             setLoading(false);
         }

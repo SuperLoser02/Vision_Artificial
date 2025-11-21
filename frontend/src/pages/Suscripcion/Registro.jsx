@@ -48,7 +48,7 @@ const Registro = () => {
             const data = await obtenerPlanes();
             setPlanes(data);
         } catch (err) {
-            console.error('Error al cargar planes:', err);
+            // console.error('Error al cargar planes:', err);
             setError('Error al cargar planes. Por favor, intenta más tarde.');
         }
     };
@@ -102,7 +102,7 @@ const Registro = () => {
             }, 3000);
             
         } catch (err) {
-            console.error('Error al registrar:', err);
+            // console.error('Error al registrar:', err);
             setError(err.error || err.detail || 'Error al registrar la empresa');
         } finally {
             setLoading(false);
