@@ -11,7 +11,7 @@ import {
     Legend,
     Filler
 } from 'chart.js';
-import axios from 'axios';
+import api from '../../services/Api';
 
 ChartJS.register(
     CategoryScale,
@@ -63,13 +63,10 @@ const Metricas = () => {
             setLoading(true);
             setError(null);
 
-            const response = await axios.get('/api/ia_detection/ia_detection/metricas_eventos/', {
+            const response = await api.get('ia_detection/metricas_eventos/', {
                 params: {
                     fecha_inicio: rangoFechas.inicio,
                     fecha_fin: rangoFechas.fin
-                },
-                headers: {
-                    'Authorization': `Token ${localStorage.getItem('token')}`
                 }
             });
 
