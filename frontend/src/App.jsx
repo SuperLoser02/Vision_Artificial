@@ -12,6 +12,7 @@ import Registro from "./pages/Suscripcion/Registro";
 import Categorias from "./pages/Categorias/Categorias";
 import Zonas from "./pages/Zonas/Zonas";
 import Notificaciones from "./pages/Notificaciones/Notificaciones";
+import Chat from "./pages/Chat/Chat";
 import Metricas from "./pages/Metricas/Metricas";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -69,6 +70,11 @@ function App() {
         <Route path="/notificaciones" element={
           <ProtectedRoute requireProfile={true}>
             <Notificaciones />
+          </ProtectedRoute>
+        } />
+        <Route path="/chat" element={
+          <ProtectedRoute requireProfile={true}>
+            <Chat />
           </ProtectedRoute>
         } />
         <Route path="/metricas" element={
