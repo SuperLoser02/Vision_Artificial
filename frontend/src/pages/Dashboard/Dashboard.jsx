@@ -28,7 +28,7 @@ const Dashboard = () => {
                 console.log('⚠️ Dashboard: Ya existe una conexión WebSocket, desconectando primero');
                 chatService.disconnect();
             }
-            
+
             console.log('🔌 Dashboard: Iniciando conexión WebSocket única para perfil', perfilId);
             chatService.connect(perfilId, authToken);
         }
@@ -45,7 +45,7 @@ const Dashboard = () => {
         // Desconectar WebSocket al cerrar sesión
         console.log('🚪 Cerrando sesión, desconectando WebSocket');
         chatService.disconnect();
-        
+
         // Solo cerrar sesión del perfil (empleado), no de la empresa
         localStorage.removeItem('perfilToken');
         localStorage.removeItem('perfilActual');
@@ -54,7 +54,7 @@ const Dashboard = () => {
     };
 
     const renderContenido = () => {
-        switch(vistaActual) {
+        switch (vistaActual) {
             case 'camaras':
                 return <Camaras />;
             case 'perfil':
@@ -86,7 +86,7 @@ const Dashboard = () => {
                         {sidebarOpen ? "←" : "→"}
                     </button>
                 </div>
-                
+
                 <ul className="mt-4 flex-1 overflow-y-auto">
                     <li
                         onClick={() => setVistaActual('camaras')}
@@ -144,16 +144,16 @@ const Dashboard = () => {
                         <span className="text-2xl">📊</span>
                         {sidebarOpen && <span className="font-medium">Métricas</span>}
                     </li>
-                    <li
+                    {/* <li
                         onClick={() => setVistaActual('historial')}
                         className={`p-4 hover:bg-blue-700 cursor-pointer flex items-center gap-3 transition-colors duration-200 ${vistaActual === 'historial' ? 'bg-blue-700' : ''}`}
                         title="Historial"
                     >
                         <span className="text-2xl">📜</span>
                         {sidebarOpen && <span className="font-medium">Historial</span>}
-                    </li>
+                    </li> */}
                 </ul>
-                
+
                 <div className="p-4 border-t border-white border-opacity-20">
                     <button
                         onClick={handleCerrarSesion}

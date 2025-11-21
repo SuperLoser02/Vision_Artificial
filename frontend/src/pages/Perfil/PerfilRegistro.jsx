@@ -107,15 +107,50 @@ const PerfilCRUD = () => {
         e.preventDefault();
         setError("");
 
-        // Validaciones
+        // Validaciones mejoradas
         if (!formData.ci || !formData.nombre || !formData.apellido || !formData.email) {
             setError("Los campos CI, Nombre, Apellido y Email son obligatorios");
             return;
         }
 
+        // Validar que no sean solo espacios en blanco
+        if (!formData.ci.trim() || !formData.nombre.trim() || !formData.apellido.trim() || !formData.email.trim()) {
+            setError("Los campos no pueden estar vacíos o contener solo espacios");
+            return;
+        }
+
+        // Validar formato de email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email)) {
+            setError("El formato del email no es válido");
+            return;
+        }
+
+        // Validar que el CI sea numérico
+        if (!/^\d+$/.test(formData.ci.trim())) {
+            setError("El CI debe contener solo números");
+            return;
+        }
+
         try {
             setLoading(true);
-            const response = await crearPerfil(formData);
+            
+            // Preparar datos con trim para eliminar espacios
+            const dataToSend = {
+                ci: formData.ci.trim(),
+                nombre: formData.nombre.trim(),
+                apellido: formData.apellido.trim(),
+                email: formData.email.trim(),
+                telefono: formData.telefono.trim() || '',
+                direccion: formData.direccion.trim() || '',
+                fecha_nacimiento: formData.fecha_nacimiento || ''
+            };
+
+            console.log('Enviando datos del perfil:', dataToSend);
+            
+            const response = await crearPerfil(dataToSend);
+            console.log('Respuesta del servidor:', response);
+            
             setContraseñaTemporal(response.contraseña_temporal);
             await cargarPerfiles();
             setFormData({
@@ -127,16 +162,32 @@ const PerfilCRUD = () => {
                 direccion: '',
                 fecha_nacimiento: ''
             });
+            
             // Generar QR temporal tras crear perfil (usar id correcto)
-            const perfilId = response.id || response.perfil?.id;
+            const perfilId = response.perfil?.id || response.id;
             if (perfilId) {
                 await generarQrTemporal(perfilId);
             }
+            
             setShowSuccessModal(true);
             setShowModal(false);
         } catch (err) {
-            console.error('Error al crear perfil:', err);
-            setError(err.error || err.detail || 'Error al crear el perfil');
+            console.error('Error completo al crear perfil:', err);
+            
+            // Mostrar mensaje de error más específico
+            let errorMessage = 'Error al crear el perfil';
+            
+            if (err.error) {
+                errorMessage = err.error;
+            } else if (err.detail) {
+                errorMessage = err.detail;
+            } else if (err.ci) {
+                errorMessage = `Error en CI: ${err.ci[0]}`;
+            } else if (err.email) {
+                errorMessage = `Error en Email: ${err.email[0]}`;
+            }
+            
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
