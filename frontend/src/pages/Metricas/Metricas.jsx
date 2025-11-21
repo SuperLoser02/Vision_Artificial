@@ -11,6 +11,8 @@ import {
     Legend,
     Filler
 } from 'chart.js';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import api from '../../services/Api';
 
 ChartJS.register(
@@ -108,6 +110,132 @@ const Metricas = () => {
             console.error('Error al cargar métricas:', err);
             setError('No se pudieron cargar las métricas. Verifica tu conexión o que el backend esté ejecutándose.');
             setLoading(false);
+        }
+    };
+
+    const generarReportePDF = async () => {
+        try {
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+            let yOffset = 15;
+
+            // Encabezado del reporte
+            pdf.setFontSize(22);
+            pdf.setFont('helvetica', 'bold');
+            pdf.text('Reporte de Métricas de Eventos', pageWidth / 2, yOffset, { align: 'center' });
+            
+            yOffset += 8;
+            pdf.setFontSize(12);
+            pdf.setFont('helvetica', 'normal');
+            pdf.text('Sistema de Vigilancia - Detección de Agresión', pageWidth / 2, yOffset, { align: 'center' });
+            
+            // Fecha de generación del reporte
+            yOffset += 10;
+            pdf.setFontSize(10);
+            pdf.setTextColor(100);
+            const fechaReporte = new Date().toLocaleString('es-ES', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            pdf.text(`Fecha de generación: ${fechaReporte}`, pageWidth / 2, yOffset, { align: 'center' });
+            
+            // Período analizado
+            yOffset += 5;
+            pdf.setTextColor(0);
+            pdf.setFont('helvetica', 'bold');
+            pdf.text(`Período analizado: ${rangoFechas.inicio} a ${rangoFechas.fin}`, pageWidth / 2, yOffset, { align: 'center' });
+            
+            // Línea separadora
+            yOffset += 5;
+            pdf.setDrawColor(200);
+            pdf.line(14, yOffset, pageWidth - 14, yOffset);
+            
+            // Estadísticas principales
+            yOffset += 10;
+            pdf.setFontSize(14);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setTextColor(0);
+            pdf.text('Estadísticas Generales', 14, yOffset);
+            
+            yOffset += 8;
+            pdf.setFontSize(11);
+            pdf.setFont('helvetica', 'normal');
+            
+            // Caja de estadísticas
+            const statsBoxHeight = 30;
+            pdf.setFillColor(249, 250, 251);
+            pdf.rect(14, yOffset, pageWidth - 28, statsBoxHeight, 'F');
+            pdf.setDrawColor(229, 231, 235);
+            pdf.rect(14, yOffset, pageWidth - 28, statsBoxHeight);
+            
+            yOffset += 8;
+            pdf.setFont('helvetica', 'bold');
+            pdf.setTextColor(220, 38, 38);
+            pdf.text(`Total de Eventos: ${estadisticas.total}`, 20, yOffset);
+            
+            yOffset += 8;
+            pdf.setTextColor(234, 88, 12);
+            pdf.text(`Promedio Diario: ${estadisticas.promedio} eventos`, 20, yOffset);
+            
+            yOffset += 8;
+            pdf.setTextColor(147, 51, 234);
+            pdf.text(`Máximo en un Día: ${estadisticas.maximo} eventos`, 20, yOffset);
+            
+            // Capturar el gráfico
+            yOffset += 20;
+            pdf.setFontSize(14);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setTextColor(0);
+            pdf.text('Gráfico de Eventos por Fecha', 14, yOffset);
+            
+            yOffset += 5;
+            
+            const chartElement = document.querySelector('canvas');
+            if (chartElement) {
+                const canvas = await html2canvas(chartElement, {
+                    backgroundColor: '#ffffff',
+                    scale: 2
+                });
+                const imgData = canvas.toDataURL('image/png');
+                
+                const imgWidth = pageWidth - 28;
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                
+                // Verificar si necesitamos una nueva página
+                if (yOffset + imgHeight > pageHeight - 20) {
+                    pdf.addPage();
+                    yOffset = 20;
+                }
+                
+                pdf.addImage(imgData, 'PNG', 14, yOffset, imgWidth, imgHeight);
+                yOffset += imgHeight + 10;
+            }
+            
+            // Pie de página
+            const totalPages = pdf.internal.getNumberOfPages();
+            for (let i = 1; i <= totalPages; i++) {
+                pdf.setPage(i);
+                pdf.setFontSize(9);
+                pdf.setTextColor(150);
+                pdf.text(
+                    `Página ${i} de ${totalPages}`,
+                    pageWidth / 2,
+                    pageHeight - 10,
+                    { align: 'center' }
+                );
+            }
+            
+            // Guardar el PDF
+            const nombreArchivo = `reporte-metricas-${new Date().toISOString().split('T')[0]}.pdf`;
+            pdf.save(nombreArchivo);
+            
+        } catch (error) {
+            console.error('Error al generar el reporte PDF:', error);
+            alert('Hubo un error al generar el reporte PDF. Por favor, intenta nuevamente.');
         }
     };
 
@@ -249,7 +377,7 @@ const Metricas = () => {
 
             <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-6">
                 <h2 className="text-lg font-semibold text-gray-800 mb-4">Filtrar por Rango de Fechas</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                             Fecha Inicio
@@ -280,6 +408,18 @@ const Metricas = () => {
                             className="w-full px-6 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition-colors"
                         >
                             Actualizar
+                        </button>
+                    </div>
+                    <div className="flex items-end">
+                        <button
+                            onClick={generarReportePDF}
+                            disabled={loading || chartData.labels.length === 0}
+                            className="w-full px-6 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            Generar PDF
                         </button>
                     </div>
                 </div>

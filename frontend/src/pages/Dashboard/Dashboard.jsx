@@ -5,6 +5,7 @@ import MiPerfil from "../Perfil/MiPerfil";
 import Categorias from "../Categorias/Categorias";
 import Notificaciones from "../Notificaciones/Notificaciones";
 import Metricas from "../Metricas/Metricas";
+import Historial from "../Historial/Historial";
 import Zonas from "../Zonas/Zonas";
 import Camaras from "../Camaras/Camaras";
 
@@ -39,6 +40,8 @@ const Dashboard = () => {
                 return <Notificaciones />;
             case 'metricas':
                 return <Metricas />;
+            case 'historial':
+                return <Historial />;
             default:
                 return <Camaras />;
         }
@@ -103,6 +106,14 @@ const Dashboard = () => {
                     >
                         <span className="text-2xl">📊</span>
                         {sidebarOpen && <span className="font-medium">Métricas</span>}
+                    </li>
+                    <li
+                        onClick={() => setVistaActual('historial')}
+                        className={`p-4 hover:bg-blue-700 cursor-pointer flex items-center gap-3 transition-colors duration-200 ${vistaActual === 'historial' ? 'bg-blue-700' : ''}`}
+                        title="Historial"
+                    >
+                        <span className="text-2xl">📜</span>
+                        {sidebarOpen && <span className="font-medium">Historial</span>}
                     </li>
                 </ul>
                 

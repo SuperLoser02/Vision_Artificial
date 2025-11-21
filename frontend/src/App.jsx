@@ -13,6 +13,7 @@ import Categorias from "./pages/Categorias/Categorias";
 import Zonas from "./pages/Zonas/Zonas";
 import Notificaciones from "./pages/Notificaciones/Notificaciones";
 import Metricas from "./pages/Metricas/Metricas";
+import Historial from "./pages/Historial/Historial";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 import "./App.css";
@@ -74,6 +75,11 @@ function App() {
         <Route path="/metricas" element={
           <ProtectedRoute requireProfile={true}>
             <Metricas />
+          </ProtectedRoute>
+        } />
+        <Route path="/historial" element={
+          <ProtectedRoute requireProfile={true}>
+            <Historial />
           </ProtectedRoute>
         } />
       </Routes>
